@@ -48,7 +48,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 @import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz@6..12&family=Raleway:wght@700&display=swap");
 * {
   margin: 0;
@@ -75,8 +75,8 @@ main {
   padding: 1.875rem 0;
 }
 .swiper-slide {
-  width: 18.75rem;
-  height: 35rem;
+  width: 10.75rem;
+  height: 25rem;
   display: flex;
   flex-direction: column;
   justify-content: end;
@@ -84,17 +84,18 @@ main {
   box-shadow: 0.063rem 0.5rem 1.25rem hsl(0deg 0% 0% / 12.16%);
   border-bottom-left-radius: 0.5rem;
   border-bottom-right-radius: 0.5rem;
+  background-color: #fff;
+  overflow: hidden;
+  position: relative;
 
   &-img {
     position: relative;
     width: 100%;
-    height: 100%;
+    height: 18rem;
+    flex-shrink: 0;
     overflow: hidden;
-    transform: rotate(180deg);
     line-height: 0;
-    bottom: -0.063rem;
-    border-bottom-left-radius: 0.5rem;
-    border-bottom-right-radius: 0.5rem;
+    background-color: #1a262f;
 
     img {
       width: 100%;
@@ -102,17 +103,19 @@ main {
       position: absolute;
       inset: 0;
       object-fit: cover;
-      z-index: -1;
-      transition: 0.3s ease-in-out;
-      transform: rotate(-180deg);
+      z-index: 0;
+      transition: transform 0.3s ease-in-out;
     }
 
     svg {
-      position: relative;
+      position: absolute;
+      bottom: -1px;
+      left: 0;
       display: block;
       width: calc(300% + 1.3px);
       height: 5rem;
-      transform: rotateY(180deg);
+      transform: scaleY(-1);
+      z-index: 1;
     }
     .shape-fill {
       fill: #ffffff;
@@ -120,14 +123,19 @@ main {
   }
 
   &-content {
+    position: relative;
+    z-index: 2;
     background: #fff;
-    padding: 0 1.65rem;
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+    padding: 0 1.65rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     width: 100%;
 
     > div {
-      transform: translateY(-1.25rem);
+      // transform: translateY(-0.75rem);
     }
 
     h2 {
@@ -139,16 +147,20 @@ main {
       margin-bottom: 0.425rem;
       text-transform: capitalize;
       letter-spacing: 0.02rem;
+      white-space: nowrap;
+      text-overflow: ellipsis;
     }
 
     p {
-      color: #000;
+      color: #000 !important;
       line-height: 1.6;
       font-size: 0.9rem;
       display: -webkit-box;
       -webkit-line-clamp: 2;
+      line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .show-more {
@@ -156,18 +168,18 @@ main {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #24aad9;
+      background: #f5593d;
       border-radius: 50%;
-      box-shadow: 0px 0.125rem 0.875rem #24aad96b;
+      box-shadow: 0px 0.125rem 0.875rem #e7882f6b;
       margin-top: 1em;
-      margin-bottom: 0.2em;
+      margin-bottom: 0.8em;
       height: 0;
       opacity: 0;
       transition: opacity 0.3s ease-in;
       margin-left: auto;
 
       &:hover {
-        background: #1184ac;
+        background: #cc462f;
       }
 
       svg {
@@ -179,7 +191,7 @@ main {
 }
 
 .swiper-slide-active:hover img {
-  transform: scale(1.2) rotate(-185deg);
+  transform: scale(1.2) rotate(-5deg);
 }
 
 .swiper-slide-active:hover .show-more {

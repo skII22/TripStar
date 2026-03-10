@@ -62,23 +62,12 @@
         </div>
 
       <!-- 主内容区 -->
-      <div class="main-content">
         <a-card
           v-show="activeSection === 'overview'"
           id="overview"
-          :title="t('result.overviewTitle', { city: tripPlan.city })"
           :bordered="false"
-          class="overview-card"
+          class="overview-card section-shellless"
         >
-          <div class="overview-meta">
-            <span class="overview-meta-item">
-              {{ t('result.dateRange', { start: tripPlan.start_date, end: tripPlan.end_date }) }}
-            </span>
-            <span v-if="tripPlan.overall_suggestions" class="overview-meta-item">
-              {{ tripPlan.overall_suggestions }}
-            </span>
-          </div>
-
           <div v-if="overviewAttractions.length > 0" ref="overviewSwiperContainerRef" class="overview-swiper">
             <div class="swiper">
               <div class="swiper-wrapper">
@@ -96,6 +85,14 @@
             </div>
           </div>
           <a-empty v-else :description="t('common.noData')" />
+          <div class="overview-meta">
+            <span class="overview-meta-item" style="color: #ffd5c6; font-weight: 700;">
+              {{ t('result.dateRange', { start: tripPlan.start_date, end: tripPlan.end_date }) }}
+            </span>
+            <span v-if="tripPlan.overall_suggestions" class="overview-meta-item">
+              {{ tripPlan.overall_suggestions }}
+            </span>
+          </div>
         </a-card>
 
         <!-- 顶部信息区:预算/地图 -->
@@ -105,55 +102,152 @@
               v-show="activeSection === 'budget' && !!tripPlan.budget"
               id="budget"
               v-if="tripPlan.budget"
-              :title="t('result.budget.title')"
               :bordered="false"
-              class="budget-card"
+              class="budget-card section-shellless"
             >
-              <div class="budget-grid">
-                <div class="budget-item">
-                  <div class="budget-label">{{ t('result.budget.attraction') }}</div>
-                  <div class="budget-value">¥{{ tripPlan.budget.total_attractions }}</div>
+              <div class="budget-detail-panel">
+                <div class="budget-toolbar">
+                  <div class="budget-toolbar-item">
+                    <span class="budget-toolbar-label">{{ t('result.budget.filterLabel') }}</span>
+                    <a-select v-model:value="budgetFilterType" size="small" class="budget-select">
+                      <a-select-option value="all">{{ t('result.budget.filterAll') }}</a-select-option>
+                      <a-select-option value="attraction">{{ t('result.budget.attraction') }}</a-select-option>
+                      <a-select-option value="hotel">{{ t('result.budget.hotel') }}</a-select-option>
+                      <a-select-option value="meal">{{ t('result.budget.meal') }}</a-select-option>
+                      <a-select-option value="transport">{{ t('result.budget.transport') }}</a-select-option>
+                    </a-select>
+                  </div>
+                  <div class="budget-toolbar-item">
+                    <span class="budget-toolbar-label">{{ t('result.budget.sortLabel') }}</span>
+                    <a-select v-model:value="budgetSortMode" size="small" class="budget-select">
+                      <a-select-option value="amountDesc">{{ t('result.budget.sortAmountDesc') }}</a-select-option>
+                      <a-select-option value="amountAsc">{{ t('result.budget.sortAmountAsc') }}</a-select-option>
+                      <a-select-option value="dayAsc">{{ t('result.budget.sortDayAsc') }}</a-select-option>
+                      <a-select-option value="dayDesc">{{ t('result.budget.sortDayDesc') }}</a-select-option>
+                    </a-select>
+                  </div>
                 </div>
-                <div class="budget-item">
-                  <div class="budget-label">{{ t('result.budget.hotel') }}</div>
-                  <div class="budget-value">¥{{ tripPlan.budget.total_hotels }}</div>
+
+                <div v-if="filteredBudgetItems.length > 0" class="budget-detail-list">
+                  <div class="budget-detail-row budget-detail-header">
+                    <span>{{ t('result.budget.detailType') }}</span>
+                    <span>{{ t('result.budget.detailDay') }}</span>
+                    <span>{{ t('result.budget.detailName') }}</span>
+                    <span>{{ t('result.budget.detailAmount') }}</span>
+                    <span>{{ t('result.budget.detailAction') }}</span>
+                  </div>
+                  <div
+                    v-for="item in filteredBudgetItems"
+                    :key="item.id"
+                    class="budget-detail-row"
+                  >
+                    <span class="budget-detail-type">{{ getBudgetTypeLabel(item.type) }}</span>
+                    <span class="budget-detail-day">
+                      {{ item.dayNumber ? t('common.dayNumber', { day: item.dayNumber }) : '--' }}
+                    </span>
+                    <span class="budget-detail-name">{{ item.name }}</span>
+                    <span class="budget-detail-amount">¥{{ formatBudgetAmount(item.amount) }}</span>
+                    <span class="budget-action-wrap">
+                      <button
+                        type="button"
+                        class="budget-icon-btn budget-edit-btn"
+                        :title="t('result.budget.editPrice')"
+                        @click="editBudgetItemAmount(item)"
+                      >
+                        <svg fill="currentColor" width="20px" height="20px" viewBox="0 0 256.00098 256.00098" id="Flat" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M216.001,203.833h-76l27.91015-27.90967.00684-.00635.00635-.00683,56.563-56.5625a28.03348,28.03348,0,0,0-.001-39.59766L179.23145,34.49512a28.03347,28.03347,0,0,0-39.59766,0L83.07471,91.0542l-.01026.00928-.00927.01025L26.49609,147.63281a28.03171,28.03171,0,0,0,0,39.59766L63.585,224.31836a12.00286,12.00286,0,0,0,8.48535,3.51465H216.001a12,12,0,0,0,0-24ZM156.60449,51.46582a4.00207,4.00207,0,0,1,5.65625,0L207.51562,96.7207a4.005,4.005,0,0,1,0,5.65723l-48.083,48.083L108.521,99.54932ZM106.05957,203.833H77.041L43.4668,170.25977a4.00385,4.00385,0,0,1,0-5.65625L91.55029,116.52l50.91114,50.91113Z"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        class="budget-icon-btn budget-delete-btn"
+                        :title="t('common.delete')"
+                        @click="deleteBudgetItem(item)"
+                      >
+                        <svg fill="currentColor" width="21px" height="21px" viewBox="0 0 256 256" id="Flat" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M215.99609,48H180V36A28.03146,28.03146,0,0,0,152,8H104A28.03146,28.03146,0,0,0,76,36V48H39.99609a12,12,0,0,0,0,24h4V208a20.0226,20.0226,0,0,0,20,20h128a20.0226,20.0226,0,0,0,20-20V72h4a12,12,0,0,0,0-24ZM100,36a4.00458,4.00458,0,0,1,4-4h48a4.00458,4.00458,0,0,1,4,4V48H100Zm87.99609,168h-120V72h120ZM116,104v64a12,12,0,0,1-24,0V104a12,12,0,0,1,24,0Zm48,0v64a12,12,0,0,1-24,0V104a12,12,0,0,1,24,0Z"/>
+                        </svg>
+                      </button>
+                    </span>
+                  </div>
                 </div>
-                <div class="budget-item">
-                  <div class="budget-label">{{ t('result.budget.meal') }}</div>
-                  <div class="budget-value">¥{{ tripPlan.budget.total_meals }}</div>
-                </div>
-                <div class="budget-item">
-                  <div class="budget-label">{{ t('result.budget.transport') }}</div>
-                  <div class="budget-value">¥{{ tripPlan.budget.total_transportation }}</div>
-                </div>
-              </div>
-              <div class="budget-total">
-                <span class="total-label">{{ t('result.budget.total') }}</span>
-                <span class="total-value">¥{{ tripPlan.budget.total }}</span>
+                <a-empty v-else :description="t('result.budget.noDetails')" />
               </div>
             </a-card>
           </div>
 
+          <div class="right-budget-summary" v-show="activeSection === 'budget' && !!tripPlan.budget">
+            <div class="budget-summary-panel">
+              <div class="budget-summary-title">{{ t('result.budget.title') }}</div>
+              <div class="budget-summary-total-wrap">
+                <span class="budget-summary-currency">¥</span>
+                <span class="budget-summary-total-value">{{ formatBudgetAmount(tripPlan.budget?.total ?? 0) }}</span>
+              </div>
+              <div class="budget-summary-sub-grid">
+                <div class="budget-summary-sub-item">
+                  <div class="budget-summary-sub-value">¥{{ formatBudgetAmount(tripPlan.budget?.total_attractions ?? 0) }}</div>
+                  <div class="budget-summary-sub-label">{{ t('result.budget.attraction') }}</div>
+                </div>
+                <div class="budget-summary-sub-item">
+                  <div class="budget-summary-sub-value">¥{{ formatBudgetAmount(tripPlan.budget?.total_hotels ?? 0) }}</div>
+                  <div class="budget-summary-sub-label">{{ t('result.budget.hotel') }}</div>
+                </div>
+                <div class="budget-summary-sub-item">
+                  <div class="budget-summary-sub-value">¥{{ formatBudgetAmount(tripPlan.budget?.total_meals ?? 0) }}</div>
+                  <div class="budget-summary-sub-label">{{ t('result.budget.meal') }}</div>
+                </div>
+                <div class="budget-summary-sub-item">
+                  <div class="budget-summary-sub-value">¥{{ formatBudgetAmount(tripPlan.budget?.total_transportation ?? 0) }}</div>
+                  <div class="budget-summary-sub-label">{{ t('result.budget.transport') }}</div>
+                </div>
+              </div>
+
+              <div class="budget-pending-wrap">
+                <div class="budget-pending-title">{{ t('result.budget.pendingTitle') }}</div>
+                <div v-if="pendingBudgetItems.length === 0" class="budget-pending-empty">
+                  {{ t('result.budget.pendingEmpty') }}
+                </div>
+                <div v-else class="budget-pending-list">
+                  <div
+                    v-for="pendingItem in pendingBudgetItems"
+                    :key="pendingItem.uid"
+                    class="budget-pending-item"
+                  >
+                    <span class="budget-pending-name">{{ pendingItem.base.name }}</span>
+                    <a-button
+                      type="link"
+                      size="small"
+                      class="budget-restore-btn"
+                      @click="restoreBudgetItem(pendingItem)"
+                    >
+                      {{ t('result.budget.restore') }}
+                    </a-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="right-map" v-show="activeSection === 'map'">
-            <a-card id="map" :title="t('result.mapTitle')" :bordered="false" class="map-card">
+            <a-card id="map" :bordered="false" class="map-card section-shellless">
               <div id="amap-container" style="width: 100%; height: 100%"></div>
             </a-card>
           </div>
         </div>
 
         <!-- 知识图谱 -->
-        <a-card v-show="activeSection === 'knowledge-graph'" id="knowledge-graph" :title="t('result.graphTitle')" :bordered="false" class="kg-card">
+        <a-card v-show="activeSection === 'knowledge-graph'" id="knowledge-graph" :bordered="false" class="kg-card section-shellless">
           <div id="kg-chart-container" style="width: 100%; height: 600px;"></div>
           <div class="kg-legend">
             <span v-for="cat in graphCategories" :key="cat.name" class="kg-legend-item">
-              <span class="kg-legend-dot" :style="{ background: getCategoryColor(cat.name) }"></span>
+              <span class="kg-legend-dot" :style="getKgLegendDotStyle(cat.name)"></span>
               {{ getCategoryLabel(cat.name) }}
             </span>
           </div>
         </a-card>
 
         <!-- 每日行程:可折叠 -->
-        <a-card v-show="activeSection === 'days'" :title="t('result.dailyTitle')" :bordered="false" class="days-card">
+        <a-card v-show="activeSection === 'days'" :bordered="false" class="days-card section-shellless">
           <a-collapse v-model:activeKey="activeDays" accordion>
             <a-collapse-panel
               v-for="(day, index) in tripPlan.days"
@@ -294,39 +388,153 @@
           v-show="activeSection === 'weather' && tripPlan.weather_info && tripPlan.weather_info.length > 0"
           id="weather"
           v-if="tripPlan.weather_info && tripPlan.weather_info.length > 0"
-          :title="t('result.weatherTitle')"
-          style="margin-top: 20px"
           :bordered="false"
+          class="section-shellless weather-section-card"
         >
-        <a-list
-          :data-source="tripPlan.weather_info"
-          :grid="{ gutter: 16, column: 3 }"
-        >
-          <template #renderItem="{ item }">
-            <a-list-item>
-              <a-card size="small" class="weather-card">
-                <div class="weather-date">{{ item.date }}</div>
-                <div class="weather-info-row">
-                  <div>
-                    <div class="weather-label">{{ t('result.weatherDay') }}</div>
-                    <div class="weather-value">{{ item.day_weather }} {{ item.day_temp }}°C</div>
+          <div v-if="selectedWeather" class="weather-dashboard">
+            <section class="weather-side" :style="weatherSideStyle">
+              <div class="weather-gradient"></div>
+
+              <div class="date-container">
+                <h2 class="date-dayname">{{ formatWeatherWeekday(selectedWeather.date) }}</h2>
+                <span class="date-day">{{ formatWeatherDate(selectedWeather.date) }}</span>
+                <span class="location">
+                  <span class="location-icon">
+                    <svg width="16px" height="16px" viewBox="-3 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                        <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                            <g id="Dribbble-Light-Preview" transform="translate(-223.000000, -5439.000000)" fill="currentColor">
+                                <g id="icons" transform="translate(56.000000, 160.000000)">
+                                    <path d="M176,5286.219 C176,5287.324 175.105,5288.219 174,5288.219 C172.895,5288.219 172,5287.324 172,5286.219 C172,5285.114 172.895,5284.219 174,5284.219 C175.105,5284.219 176,5285.114 176,5286.219 M174,5296 C174,5296 169,5289 169,5286 C169,5283.243 171.243,5281 174,5281 C176.757,5281 179,5283.243 179,5286 C179,5289 174,5296 174,5296 M174,5279 C170.134,5279 167,5282.134 167,5286 C167,5289.866 174,5299 174,5299 C174,5299 181,5289.866 181,5286 C181,5282.134 177.866,5279 174,5279" id="pin_sharp_circle-[#624]"></path>
+                                </g>
+                            </g>
+                        </g>
+                    </svg>
+                  </span>
+                  {{ tripPlan.city }}
+                </span>
+              </div>
+
+              <div class="weather-container">
+                <div class="weather-hero-icon weather-icon" :class="selectedWeatherIconKind">
+                  <template v-if="selectedWeatherIconKind === 'sun-shower'">
+                    <div class="cloud"></div>
+                    <div class="sun">
+                      <div class="rays"></div>
+                    </div>
+                    <div class="rain"></div>
+                  </template>
+                  <template v-else-if="selectedWeatherIconKind === 'thunder-storm'">
+                    <div class="cloud"></div>
+                    <div class="lightning">
+                      <div class="bolt"></div>
+                      <div class="bolt"></div>
+                    </div>
+                  </template>
+                  <template v-else-if="selectedWeatherIconKind === 'cloudy'">
+                    <div class="cloud"></div>
+                    <div class="cloud"></div>
+                  </template>
+                  <template v-else-if="selectedWeatherIconKind === 'flurries'">
+                    <div class="cloud"></div>
+                    <div class="snow">
+                      <div class="flake"></div>
+                      <div class="flake"></div>
+                    </div>
+                  </template>
+                  <template v-else-if="selectedWeatherIconKind === 'rainy'">
+                    <div class="cloud"></div>
+                    <div class="rain"></div>
+                  </template>
+                  <template v-else>
+                    <div class="sun">
+                      <div class="rays"></div>
+                    </div>
+                  </template>
+                </div>
+                <h1 class="weather-temp">{{ formatWeatherTemp(selectedWeather.day_temp) }}</h1>
+                <h3 class="weather-desc">{{ selectedWeather.day_weather }}</h3>
+              </div>
+            </section>
+
+            <section class="weather-info-side">
+              <div class="week-container week-container--top">
+                <ul class="week-list">
+                  <li
+                    v-for="(weatherItem, weatherIndex) in weatherDisplayList"
+                    :key="`${weatherItem.date}-${weatherIndex}`"
+                    :class="{ active: weatherIndex === activeWeatherIndex }"
+                    @mouseenter="selectWeatherDay(weatherIndex)"
+                    @click="selectWeatherDay(weatherIndex)"
+                  >
+                    <div class="day-icon weather-icon weather-icon--small" :class="weatherItem._iconKind">
+                      <template v-if="weatherItem._iconKind === 'sun-shower'">
+                        <div class="cloud"></div>
+                        <div class="sun">
+                          <div class="rays"></div>
+                        </div>
+                        <div class="rain"></div>
+                      </template>
+                      <template v-else-if="weatherItem._iconKind === 'thunder-storm'">
+                        <div class="cloud"></div>
+                        <div class="lightning">
+                          <div class="bolt"></div>
+                          <div class="bolt"></div>
+                        </div>
+                      </template>
+                      <template v-else-if="weatherItem._iconKind === 'cloudy'">
+                        <div class="cloud"></div>
+                        <div class="cloud"></div>
+                      </template>
+                      <template v-else-if="weatherItem._iconKind === 'flurries'">
+                        <div class="cloud"></div>
+                        <div class="snow">
+                          <div class="flake"></div>
+                          <div class="flake"></div>
+                        </div>
+                      </template>
+                      <template v-else-if="weatherItem._iconKind === 'rainy'">
+                        <div class="cloud"></div>
+                        <div class="rain"></div>
+                      </template>
+                      <template v-else>
+                        <div class="sun">
+                          <div class="rays"></div>
+                        </div>
+                      </template>
+                    </div>
+                    <span class="day-name">{{ formatWeatherWeekday(weatherItem.date, true) }}</span>
+                    <span class="day-temp">{{ formatWeatherTemp(weatherItem.day_temp) }}</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="today-info-container">
+                <div class="today-info">
+                  <div class="today-info-item">
+                    <span class="wea-title">{{ t('result.weatherDay') }}</span>
+                    <span class="value">{{ selectedWeather.day_weather }} · {{ formatWeatherTemp(selectedWeather.day_temp) }}</span>
+                  </div>
+                  <div class="today-info-item">
+                    <span class="wea-title">{{ t('result.weatherNight') }}</span>
+                    <span class="value">{{ selectedWeather.night_weather }} · {{ formatWeatherTemp(selectedWeather.night_temp) }}</span>
+                  </div>
+                  <div class="today-info-item">
+                    <span class="wea-title">{{ t('result.weatherPrecipitation') }}</span>
+                    <span class="value">{{ getWeatherPrecipitation(selectedWeather.day_weather) }}</span>
+                  </div>
+                  <div class="today-info-item">
+                    <span class="wea-title">{{ t('result.weatherHumidity') }}</span>
+                    <span class="value">{{ getWeatherHumidity(selectedWeather.day_weather) }}</span>
+                  </div>
+                  <div class="today-info-item">
+                    <span class="wea-title">{{ t('result.weatherWind') }}</span>
+                    <span class="value">{{ getWeatherWind(selectedWeather) }}</span>
                   </div>
                 </div>
-                <div class="weather-info-row">
-                  <div>
-                    <div class="weather-label">{{ t('result.weatherNight') }}</div>
-                    <div class="weather-value">{{ item.night_weather }} {{ item.night_temp }}°C</div>
-                  </div>
-                </div>
-                <div class="weather-wind">
-                  {{ item.wind_direction }} {{ item.wind_power }}
-                </div>
-              </a-card>
-            </a-list-item>
-          </template>
-        </a-list>
+              </div>
+            </section>
+          </div>
         </a-card>
-      </div>
       </div>
 
       <div v-else class="empty-state-panel">
@@ -346,58 +554,7 @@
       </div>
     </a-back-top>
 
-    <!-- AI 聊天窗口 -->
-    <div class="chat-toggle-btn" @click="chatOpen = !chatOpen" :class="{ active: chatOpen }">
-      {{ t('result.chat.toggle') }}
-    </div>
-    <transition name="chat-slide">
-      <div v-show="chatOpen" class="chat-panel">
-        <div class="chat-header">
-          <span>{{ t('result.chat.title') }}</span>
-          <button type="button" class="chat-close" @click="chatOpen = false">{{ t('common.cancel') }}</button>
-        </div>
-        <div class="chat-messages" ref="chatMessagesRef">
-          <div v-if="chatHistory.length === 0" class="chat-empty">
-            {{ t('result.chat.welcome') }}
-            <div class="chat-suggestions">
-              <span
-                v-for="question in quickQuestions"
-                :key="question.labelKey"
-                class="chat-suggestion"
-                @click="sendQuickQuestion(t(question.questionKey))"
-              >
-                {{ t(question.labelKey) }}
-              </span>
-            </div>
-          </div>
-          <div
-            v-for="(msg, idx) in chatHistory"
-            :key="idx"
-            class="chat-bubble"
-            :class="msg.role"
-          >
-            <div class="bubble-content">{{ msg.content }}</div>
-          </div>
-          <div v-if="chatLoading" class="chat-bubble assistant">
-            <div class="bubble-content typing">
-              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-            </div>
-          </div>
-        </div>
-        <div class="chat-input-area">
-          <input
-            v-model="chatInput"
-            class="chat-input"
-            :placeholder="t('result.chat.placeholder')"
-            @keydown.enter="sendChatMessage"
-            :disabled="chatLoading"
-          />
-          <button class="chat-send-btn" @click="sendChatMessage" :disabled="chatLoading || !chatInput.trim()">
-            {{ t('result.chat.send') }}
-          </button>
-        </div>
-      </div>
-    </transition>
+    <AIChat :trip-plan="tripPlan" />
   </div>
 </template>
 
@@ -411,15 +568,15 @@ import AMapLoader from '@amap/amap-jsapi-loader'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import * as echarts from 'echarts'
-import axios from 'axios'
 import Swiper from 'swiper'
 import { EffectCoverflow, Keyboard, Mousewheel } from 'swiper/modules'
 import NavBar from '@/components/NavBar.vue'
 import OverviewAttractionCard from '@/components/OverviewAttractionCard.vue'
-import type { TripPlan, KnowledgeGraphData, GraphCategory, ChatMessage } from '@/types'
+import AIChat from '@/components/AIChat.vue'
+import type { TripPlan, KnowledgeGraphData, GraphCategory, Attraction, Meal, Hotel, WeatherInfo } from '@/types'
 
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const tripPlan = ref<TripPlan | null>(null)
 const editMode = ref(false)
 const originalPlan = ref<TripPlan | null>(null)
@@ -441,6 +598,200 @@ type OverviewAttractionItem = {
   dayArrayIndex: number
   order: number
 }
+
+type BudgetItemType = 'attraction' | 'hotel' | 'meal' | 'transport'
+type BudgetSortMode = 'amountDesc' | 'amountAsc' | 'dayAsc' | 'dayDesc'
+
+type BudgetDetailItem = {
+  id: string
+  type: BudgetItemType
+  dayIndex: number | null
+  dayNumber: number | null
+  name: string
+  amount: number
+  sourceIndex?: number
+}
+
+type BudgetRestorePayload =
+  | {
+      type: 'attraction'
+      attraction: Attraction
+      insertIndex: number
+    }
+  | {
+      type: 'meal'
+      meal: Meal
+      insertIndex: number
+    }
+  | {
+      type: 'hotel'
+      hotel: Hotel
+      accommodation: string
+    }
+  | {
+      type: 'transport'
+      transportation: string
+    }
+
+type BudgetRestoreItem = {
+  uid: string
+  base: BudgetDetailItem
+  payload: BudgetRestorePayload
+}
+
+const budgetFilterType = ref<'all' | BudgetItemType>('all')
+const budgetSortMode = ref<BudgetSortMode>('amountDesc')
+const pendingBudgetItems = ref<BudgetRestoreItem[]>([])
+const activeWeatherIndex = ref(0)
+
+const localeTag = computed(() => {
+  const currentLocale = String(locale.value || 'en').toLowerCase()
+  if (currentLocale.startsWith('zh')) return 'zh-CN'
+  if (currentLocale.startsWith('ja')) return 'ja-JP'
+  return 'en-US'
+})
+
+const weatherList = computed<WeatherInfo[]>(() => tripPlan.value?.weather_info ?? [])
+
+const selectedWeather = computed<WeatherInfo | null>(() => {
+  const list = weatherList.value
+  if (list.length === 0) return null
+  const safeIndex = Math.min(Math.max(activeWeatherIndex.value, 0), list.length - 1)
+  return list[safeIndex]
+})
+
+const parseWeatherDate = (rawDate: string): Date | null => {
+  if (!rawDate) return null
+
+  const normalized = rawDate
+    .replace(/年/g, '-')
+    .replace(/月/g, '-')
+    .replace(/日/g, '')
+    .replace(/[./]/g, '-')
+    .trim()
+
+  const parsedDate = new Date(normalized)
+  if (!Number.isNaN(parsedDate.getTime())) return parsedDate
+
+  const matched = rawDate.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/)
+  if (!matched) return null
+  const [, year, month, day] = matched
+  const fallbackDate = new Date(Number(year), Number(month) - 1, Number(day))
+  return Number.isNaN(fallbackDate.getTime()) ? null : fallbackDate
+}
+
+const formatWeatherDate = (rawDate: string): string => {
+  const date = parseWeatherDate(rawDate)
+  if (!date) return rawDate || '--'
+  return new Intl.DateTimeFormat(localeTag.value, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
+const formatWeatherWeekday = (rawDate: string, short = false): string => {
+  const date = parseWeatherDate(rawDate)
+  if (!date) return rawDate || '--'
+  return new Intl.DateTimeFormat(localeTag.value, {
+    weekday: short ? 'short' : 'long',
+  }).format(date)
+}
+
+const formatWeatherTemp = (temperature: number | null | undefined): string => {
+  if (!Number.isFinite(Number(temperature))) return '--'
+  return `${Math.round(Number(temperature))}°C`
+}
+
+type WeatherIconKind = 'sun-shower' | 'thunder-storm' | 'cloudy' | 'flurries' | 'sunny' | 'rainy'
+
+const getWeatherIconKind = (weatherText: string): WeatherIconKind => {
+  const text = (weatherText || '').trim()
+  const hasRain = /(雨|rain|shower|drizzle|sprinkle|阵雨|小雨|中雨|大雨|暴雨)/i.test(text)
+  const hasSun = /(晴|sun|clear)/i.test(text)
+
+  if (/(雷|thunder|storm|lightning|雷暴|雷阵雨)/i.test(text)) return 'thunder-storm'
+  if (/(雪|snow|sleet|hail|冰雹|冻雨|雨夹雪)/i.test(text)) return 'flurries'
+  if (hasRain && hasSun) return 'sun-shower'
+  if (hasRain) return 'rainy'
+  if (/(云|阴|cloud|overcast|雾|霾|fog|mist|haze|wind|breeze|gale)/i.test(text)) return 'cloudy'
+  return 'sunny'
+}
+
+const selectedWeatherIconKind = computed<WeatherIconKind>(() => {
+  if (!selectedWeather.value) return 'sunny'
+  return getWeatherIconKind(`${selectedWeather.value.day_weather || ''} ${selectedWeather.value.night_weather || ''}`)
+})
+
+type WeatherDisplayItem = WeatherInfo & {
+  _iconKind: WeatherIconKind
+}
+
+const weatherDisplayList = computed<WeatherDisplayItem[]>(() => {
+  return weatherList.value.map((item) => ({
+    ...item,
+    _iconKind: getWeatherIconKind(`${item.day_weather || ''} ${item.night_weather || ''}`),
+  }))
+})
+
+const getWeatherGradient = (weatherText: string): string => {
+  const text = (weatherText || '').toLowerCase()
+  if (/(雷|thunder)/.test(text)) return 'linear-gradient(140deg, #3a4a86 0%, #5b3b8a 100%)'
+  if (/(雪|snow|sleet|hail)/.test(text)) return 'linear-gradient(140deg, #8bc6ec 0%, #d9afd9 100%)'
+  if (/(雨|rain|shower|drizzle)/.test(text)) return 'linear-gradient(140deg, #4b6cb7 0%, #182848 100%)'
+  if (/(雾|霾|fog|mist|haze)/.test(text)) return 'linear-gradient(140deg, #7b8799 0%, #4a5568 100%)'
+  if (/(阴|cloud|overcast)/.test(text)) return 'linear-gradient(140deg, #6d7f92 0%, #3f4c6b 100%)'
+  return 'linear-gradient(140deg, #72edf2 0%, #5151e5 100%)'
+}
+
+const getWeatherPrecipitation = (weatherText: string): string => {
+  const text = (weatherText || '').toLowerCase()
+  if (/(雷|thunder|暴雨|storm)/.test(text)) return '85%'
+  if (/(雨|rain|shower|drizzle)/.test(text)) return '65%'
+  if (/(雪|snow|sleet|hail)/.test(text)) return '55%'
+  if (/(阴|cloud|overcast)/.test(text)) return '30%'
+  return '10%'
+}
+
+const getWeatherHumidity = (weatherText: string): string => {
+  const text = (weatherText || '').toLowerCase()
+  if (/(雷|thunder|暴雨|storm)/.test(text)) return '88%'
+  if (/(雨|rain|shower|drizzle)/.test(text)) return '78%'
+  if (/(雪|snow|sleet|hail)/.test(text)) return '72%'
+  if (/(阴|cloud|overcast|雾|霾|fog|mist|haze)/.test(text)) return '62%'
+  return '42%'
+}
+
+const getWeatherWind = (weather: WeatherInfo | null): string => {
+  if (!weather) return '--'
+  const direction = weather.wind_direction?.trim() || '--'
+  const power = weather.wind_power?.trim() || '--'
+  return `${direction} ${power}`.trim()
+}
+
+const selectWeatherDay = (index: number) => {
+  if (index < 0 || index >= weatherList.value.length) return
+  activeWeatherIndex.value = index
+}
+
+const weatherSideStyle = computed<Record<string, string>>(() => ({
+  '--weather-gradient': getWeatherGradient(selectedWeather.value?.day_weather || ''),
+}))
+
+watch(
+  weatherList,
+  (list) => {
+    if (list.length === 0) {
+      activeWeatherIndex.value = 0
+      return
+    }
+
+    if (activeWeatherIndex.value > list.length - 1) {
+      activeWeatherIndex.value = 0
+    }
+  },
+  { immediate: true }
+)
 
 const overviewAttractions = computed<OverviewAttractionItem[]>(() => {
   if (!tripPlan.value) return []
@@ -508,10 +859,10 @@ const initOverviewSwiper = async () => {
     loop: false,
     breakpoints: {
       640: {
-        slidesPerView: 2,
+        slidesPerView: 3,
       },
       1024: {
-        slidesPerView: 3,
+        slidesPerView: 4,
       },
     },
     on: {
@@ -530,6 +881,7 @@ const initOverviewSwiper = async () => {
 const graphData = ref<KnowledgeGraphData | null>(null)
 const graphCategories = ref<GraphCategory[]>([])
 let kgChart: echarts.ECharts | null = null
+let kgResizeHandler: (() => void) | null = null
 
 const ensureMapReady = async () => {
   await nextTick()
@@ -609,76 +961,182 @@ const getCategoryLabel = (name: string): string => {
   return name
 }
 
-const quickQuestions = [
-  {
-    labelKey: 'result.chat.quickPriceLabel',
-    questionKey: 'result.chat.quickPriceQuestion',
-  },
-  {
-    labelKey: 'result.chat.quickSuitabilityLabel',
-    questionKey: 'result.chat.quickSuitabilityQuestion',
-  },
-  {
-    labelKey: 'result.chat.quickMealLabel',
-    questionKey: 'result.chat.quickMealQuestion',
-  },
-]
+type KgNodeVisualPreset = {
+  size: number
+  gradientStart: string
+  gradientEnd: string | null
+}
 
-// 聊天相关
-const chatOpen = ref(false)
-const chatInput = ref('')
-const chatHistory = ref<ChatMessage[]>([])
-const chatLoading = ref(false)
-const chatMessagesRef = ref<HTMLElement | null>(null)
+const KG_NODE_CATEGORY_COLORS: Record<string, { start: string; end: string | null }> = {
+  city: { start: '#0B3D91', end: '#5EEAD4' },
+  schedule: { start: '#0000FF', end: '#E06BE0' },
+  attraction: { start: '#0F7A32', end: '#C8FF6A' },
+  hotel: { start: '#f59e0b', end: '#fde68a' },
+  meal: { start: '#B91C1C', end: '#FDBA74' },
+  weather: { start: '#0369A1', end: '#BFDBFE' },
+  budget: { start: '#ea580c', end: '#fdba74' },
+  suggestion: { start: '#9333ea', end: '#f0abfc' },
+}
 
-const scrollChatToBottom = () => {
-  nextTick(() => {
-    if (chatMessagesRef.value) {
-      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
+const getKgCategoryPalette = (categoryName: string): { start: string; end: string | null } => {
+  const categoryKey = normalizeCategoryKey(categoryName || '')
+  return KG_NODE_CATEGORY_COLORS[categoryKey] || { start: getCategoryColor(categoryName), end: null }
+}
+
+const KG_NODE_SIZE_SCALE = 1.25
+
+const getKgNodeVisualPreset = (rawSize: number, categoryName: string): KgNodeVisualPreset => {
+  const baseSize = rawSize >= 70 ? 100 : rawSize >= 45 ? 80 : 60
+  const size = Math.round(baseSize * KG_NODE_SIZE_SCALE)
+  const palette = getKgCategoryPalette(categoryName)
+
+  return {
+    size,
+    gradientStart: palette.start,
+    gradientEnd: palette.end,
+  }
+}
+
+const kgNodeSymbolCache = new Map<string, string>()
+const kgLegendDotStyleCache = new Map<string, Record<string, string>>()
+
+const buildFeatherCircleSvgDataUrl = (size: number, start: string, end: string | null): string => {
+  const center = size / 2
+  const radius = Math.round(size * 0.34)
+  const gradientDef = end
+    ? `<linearGradient id="kgNodeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+         <stop offset="0%" stop-color="${start}" />
+         <stop offset="100%" stop-color="${end}" />
+       </linearGradient>`
+    : ''
+  const fillColor = end ? 'url(#kgNodeGradient)' : start
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <defs>
+      ${gradientDef}
+      <filter id="kgNodeBlur" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="4" />
+      </filter>
+    </defs>
+    <circle cx="${center}" cy="${center}" r="${radius}" fill="${fillColor}" filter="url(#kgNodeBlur)" />
+  </svg>`
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
+}
+
+const getKgNodeSymbol = (visual: KgNodeVisualPreset): string => {
+  const cacheKey = `${visual.size}-${visual.gradientStart}-${visual.gradientEnd ?? 'solid'}`
+  const cachedSymbol = kgNodeSymbolCache.get(cacheKey)
+  if (cachedSymbol) return cachedSymbol
+
+  const symbol = `image://${buildFeatherCircleSvgDataUrl(visual.size, visual.gradientStart, visual.gradientEnd)}`
+  kgNodeSymbolCache.set(cacheKey, symbol)
+  return symbol
+}
+
+const getKgLegendDotStyle = (categoryName: string): Record<string, string> => {
+  const palette = getKgCategoryPalette(categoryName)
+  const cacheKey = `${palette.start}-${palette.end ?? 'solid'}`
+  const cachedStyle = kgLegendDotStyleCache.get(cacheKey)
+  if (cachedStyle) return cachedStyle
+
+  const dataUrl = buildFeatherCircleSvgDataUrl(24, palette.start, palette.end)
+  const style = { backgroundImage: `url("${dataUrl}")` }
+  kgLegendDotStyleCache.set(cacheKey, style)
+  return style
+}
+
+const buildKgBoundaryPositionMap = (
+  nodes: any[],
+  edges: any[],
+  categories: GraphCategory[],
+  width: number,
+  height: number
+): Map<string, { x: number; y: number }> => {
+  const nodeKey = (id: unknown): string => String(id)
+  const degreeMap = new Map<string, number>()
+
+  nodes.forEach((node) => degreeMap.set(nodeKey(node.id), 0))
+  edges.forEach((edge) => {
+    const sourceKey = nodeKey(edge.source)
+    const targetKey = nodeKey(edge.target)
+    degreeMap.set(sourceKey, (degreeMap.get(sourceKey) || 0) + 1)
+    degreeMap.set(targetKey, (degreeMap.get(targetKey) || 0) + 1)
+  })
+
+  let rootNodeKey = nodes.length > 0 ? nodeKey(nodes[0].id) : ''
+  let maxDegree = -1
+  nodes.forEach((node) => {
+    const key = nodeKey(node.id)
+    const degree = degreeMap.get(key) || 0
+    if (degree > maxDegree) {
+      maxDegree = degree
+      rootNodeKey = key
     }
   })
-}
 
-const sendQuickQuestion = (q: string) => {
-  chatInput.value = q
-  sendChatMessage()
-}
+  const groupedNodes = new Map<string, any[]>()
+  nodes.forEach((node) => {
+    const key = nodeKey(node.id)
+    if (key === rootNodeKey) return
 
-const sendChatMessage = async () => {
-  const text = chatInput.value.trim()
-  if (!text || chatLoading.value || !tripPlan.value) return
+    const categoryName = categories?.[Number(node.category)]?.name || ''
+    const categoryKey = normalizeCategoryKey(categoryName || 'misc')
+    if (!groupedNodes.has(categoryKey)) groupedNodes.set(categoryKey, [])
+    groupedNodes.get(categoryKey)!.push(node)
+  })
 
-  chatHistory.value.push({ role: 'user', content: text })
-  chatInput.value = ''
-  chatLoading.value = true
-  scrollChatToBottom()
+  const orderedGroupKeys = Array.from(groupedNodes.keys()).sort((a, b) => {
+    return (groupedNodes.get(b)?.length || 0) - (groupedNodes.get(a)?.length || 0)
+  })
 
-  try {
-    const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-    const res = await axios.post(`${apiBase}/api/chat/ask`, {
-      message: text,
-      trip_plan: tripPlan.value,
-      history: chatHistory.value.slice(0, -1), // 排除本次提问
-    })
+  const cx = width / 2
+  const cy = height / 2
+  const outerRadiusX = Math.max(80, width / 2 - 24)
+  const outerRadiusY = Math.max(80, height / 2 - 24)
+  const layerFactors = [1, 0.9, 0.8, 0.7]
+  const positionMap = new Map<string, { x: number; y: number }>()
 
-    if (res.data.success) {
-      chatHistory.value.push({ role: 'assistant', content: res.data.reply })
-    } else {
-      chatHistory.value.push({ role: 'assistant', content: t('result.chat.replyFallback') })
-    }
-  } catch (err) {
-    console.error('Chat error:', err)
-    chatHistory.value.push({ role: 'assistant', content: t('result.chat.networkError') })
-  } finally {
-    chatLoading.value = false
-    scrollChatToBottom()
+  if (rootNodeKey) {
+    positionMap.set(rootNodeKey, { x: cx, y: cy })
   }
+
+  orderedGroupKeys.forEach((groupKey, groupIndex) => {
+    const group = groupedNodes.get(groupKey) || []
+    if (group.length === 0) return
+
+    const baseAngle = -Math.PI / 2 + (2 * Math.PI * groupIndex) / Math.max(1, orderedGroupKeys.length)
+    const spread = Math.min(1.25, Math.max(0.55, group.length * 0.03))
+    const layerStride = Math.max(1, Math.ceil(group.length / layerFactors.length))
+
+    group.forEach((node, nodeIndex) => {
+      const t = group.length === 1 ? 0 : nodeIndex / (group.length - 1) - 0.5
+      const angle = baseAngle + t * spread
+      const layerIndex = Math.min(layerFactors.length - 1, Math.floor(nodeIndex / layerStride))
+      const layerFactor = layerFactors[layerIndex]
+
+      const visualSize = Number(node.__visual?.size) || 90
+      const nodeRadius = Math.round(visualSize * 0.34)
+      const marginX = nodeRadius + 8
+      const marginY = nodeRadius + 8
+
+      let x = cx + Math.cos(angle) * outerRadiusX * layerFactor
+      let y = cy + Math.sin(angle) * outerRadiusY * layerFactor
+      x = Math.max(marginX, Math.min(width - marginX, x))
+      y = Math.max(marginY, Math.min(height - marginY, y))
+
+      positionMap.set(nodeKey(node.id), { x, y })
+    })
+  })
+
+  return positionMap
 }
 
 onMounted(async () => {
   const data = sessionStorage.getItem('tripPlan')
   if (data) {
     tripPlan.value = JSON.parse(data)
+    pendingBudgetItems.value = []
     // 加载景点图片
     await loadAttractionPhotos()
     // 加载知识图谱
@@ -719,6 +1177,10 @@ watch(
 
 onUnmounted(() => {
   destroyOverviewSwiper()
+  if (kgResizeHandler) {
+    window.removeEventListener('resize', kgResizeHandler)
+    kgResizeHandler = null
+  }
   if (kgChart) {
     kgChart.dispose()
     kgChart = null
@@ -766,6 +1228,7 @@ const toggleEditMode = () => {
 // 保存修改
 const saveChanges = () => {
   editMode.value = false
+  recalculateBudgetTotals()
   // 更新sessionStorage
   if (tripPlan.value) {
     sessionStorage.setItem('tripPlan', JSON.stringify(tripPlan.value))
@@ -789,6 +1252,7 @@ const cancelEdit = () => {
   if (originalPlan.value) {
     tripPlan.value = JSON.parse(JSON.stringify(originalPlan.value))
   }
+  pendingBudgetItems.value = []
   editMode.value = false
   message.info(t('result.messages.editCanceled'))
 }
@@ -804,6 +1268,7 @@ const deleteAttraction = (dayIndex: number, attrIndex: number) => {
   }
 
   day.attractions.splice(attrIndex, 1)
+  recalculateBudgetTotals()
   message.success(t('result.messages.attractionDeleted'))
 }
 
@@ -829,6 +1294,379 @@ const getMealLabel = (type: string): string => {
     snack: t('result.meals.snack')
   }
   return labels[type] || type
+}
+
+const toBudgetNumber = (value: unknown): number => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0
+  return numeric
+}
+
+const roundBudgetAmount = (value: number): number => {
+  return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+const formatBudgetAmount = (value: number): string => {
+  const rounded = roundBudgetAmount(value)
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2)
+}
+
+const getBudgetTypeLabel = (type: BudgetItemType): string => {
+  const labels: Record<BudgetItemType, string> = {
+    attraction: t('result.budget.attraction'),
+    hotel: t('result.budget.hotel'),
+    meal: t('result.budget.meal'),
+    transport: t('result.budget.transport'),
+  }
+  return labels[type]
+}
+
+const cloneData = <T>(data: T): T => JSON.parse(JSON.stringify(data)) as T
+
+const recalculateBudgetTotals = (transportationOverride?: number) => {
+  if (!tripPlan.value) return
+
+  let attractionTotal = 0
+  let hotelTotal = 0
+  let mealTotal = 0
+
+  tripPlan.value.days.forEach((day) => {
+    day.attractions.forEach((attraction) => {
+      attractionTotal += toBudgetNumber(attraction.ticket_price)
+    })
+
+    if (day.hotel) {
+      hotelTotal += toBudgetNumber(day.hotel.estimated_cost)
+    }
+
+    day.meals.forEach((meal) => {
+      mealTotal += toBudgetNumber(meal.estimated_cost)
+    })
+  })
+
+  const transportationTotal = roundBudgetAmount(
+    transportationOverride ?? toBudgetNumber(tripPlan.value.budget?.total_transportation)
+  )
+
+  tripPlan.value.budget = {
+    total_attractions: roundBudgetAmount(attractionTotal),
+    total_hotels: roundBudgetAmount(hotelTotal),
+    total_meals: roundBudgetAmount(mealTotal),
+    total_transportation: transportationTotal,
+    total: roundBudgetAmount(attractionTotal + hotelTotal + mealTotal + transportationTotal),
+  }
+}
+
+const budgetItems = computed<BudgetDetailItem[]>(() => {
+  if (!tripPlan.value) return []
+
+  const items: BudgetDetailItem[] = []
+
+  tripPlan.value.days.forEach((day, dayIndex) => {
+    const dayNumber = day.day_index + 1
+
+    day.attractions.forEach((attraction, attractionIndex) => {
+      const amount = roundBudgetAmount(toBudgetNumber(attraction.ticket_price))
+      if (amount <= 0) return
+      items.push({
+        id: `attraction-${dayIndex}-${attractionIndex}`,
+        type: 'attraction',
+        dayIndex,
+        dayNumber,
+        name: attraction.name,
+        amount,
+        sourceIndex: attractionIndex,
+      })
+    })
+
+    if (day.hotel) {
+      const amount = roundBudgetAmount(toBudgetNumber(day.hotel.estimated_cost))
+      if (amount > 0) {
+        items.push({
+          id: `hotel-${dayIndex}`,
+          type: 'hotel',
+          dayIndex,
+          dayNumber,
+          name: day.hotel.name,
+          amount,
+        })
+      }
+    }
+
+    day.meals.forEach((meal, mealIndex) => {
+      const amount = roundBudgetAmount(toBudgetNumber(meal.estimated_cost))
+      if (amount <= 0) return
+      items.push({
+        id: `meal-${dayIndex}-${mealIndex}`,
+        type: 'meal',
+        dayIndex,
+        dayNumber,
+        name: `${getMealLabel(meal.type)} · ${meal.name}`,
+        amount,
+        sourceIndex: mealIndex,
+      })
+    })
+  })
+
+  const transportTotal = roundBudgetAmount(toBudgetNumber(tripPlan.value.budget?.total_transportation))
+  const transportDays = tripPlan.value.days
+    .map((day, dayIndex) => ({ day, dayIndex }))
+    .filter(({ day }) => Boolean(day.transportation && day.transportation.trim()))
+
+  if (transportTotal > 0 && transportDays.length > 0) {
+    const avg = roundBudgetAmount(transportTotal / transportDays.length)
+    let remaining = transportTotal
+
+    transportDays.forEach(({ day, dayIndex }, index) => {
+      const amount = index === transportDays.length - 1 ? remaining : Math.min(avg, remaining)
+      remaining = roundBudgetAmount(remaining - amount)
+      items.push({
+        id: `transport-${dayIndex}`,
+        type: 'transport',
+        dayIndex,
+        dayNumber: day.day_index + 1,
+        name: day.transportation,
+        amount: roundBudgetAmount(amount),
+      })
+    })
+  }
+
+  return items
+})
+
+const filteredBudgetItems = computed<BudgetDetailItem[]>(() => {
+  let items = budgetItems.value
+
+  if (budgetFilterType.value !== 'all') {
+    items = items.filter((item) => item.type === budgetFilterType.value)
+  }
+
+  const sorted = [...items]
+  sorted.sort((a, b) => {
+    const dayA = a.dayNumber ?? Number.MAX_SAFE_INTEGER
+    const dayB = b.dayNumber ?? Number.MAX_SAFE_INTEGER
+
+    switch (budgetSortMode.value) {
+      case 'amountAsc':
+        return a.amount - b.amount
+      case 'dayAsc':
+        return dayA - dayB || b.amount - a.amount
+      case 'dayDesc':
+        return dayB - dayA || b.amount - a.amount
+      case 'amountDesc':
+      default:
+        return b.amount - a.amount
+    }
+  })
+
+  return sorted
+})
+
+const editBudgetItemAmount = (item: BudgetDetailItem) => {
+  if (!tripPlan.value || item.dayIndex === null) return
+
+  const day = tripPlan.value.days[item.dayIndex]
+  if (!day) return
+
+  const input = window.prompt(
+    t('result.budget.editPrompt', {
+      name: item.name,
+      amount: formatBudgetAmount(item.amount),
+    }),
+    formatBudgetAmount(item.amount)
+  )
+
+  if (input === null) return
+
+  const numeric = Number(input.trim())
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    message.warning(t('result.messages.budgetInvalidAmount'))
+    return
+  }
+
+  const nextAmount = roundBudgetAmount(numeric)
+  if (nextAmount === roundBudgetAmount(item.amount)) return
+
+  const confirmed = window.confirm(
+    t('result.budget.editConfirm', {
+      name: item.name,
+      amount: formatBudgetAmount(nextAmount),
+    })
+  )
+  if (!confirmed) return
+
+  let changed = false
+
+  if (item.type === 'attraction' && typeof item.sourceIndex === 'number' && day.attractions[item.sourceIndex]) {
+    day.attractions[item.sourceIndex].ticket_price = nextAmount
+    changed = true
+  }
+
+  if (item.type === 'meal' && typeof item.sourceIndex === 'number' && day.meals[item.sourceIndex]) {
+    day.meals[item.sourceIndex].estimated_cost = nextAmount
+    changed = true
+  }
+
+  if (item.type === 'hotel' && day.hotel) {
+    day.hotel.estimated_cost = nextAmount
+    changed = true
+  }
+
+  const transportationTotal =
+    item.type === 'transport'
+      ? Math.max(
+          0,
+          roundBudgetAmount(toBudgetNumber(tripPlan.value.budget?.total_transportation) - item.amount + nextAmount)
+        )
+      : undefined
+
+  if (item.type === 'transport' && day.transportation && day.transportation.trim()) {
+    changed = true
+  }
+
+  if (!changed) return
+
+  recalculateBudgetTotals(transportationTotal)
+  sessionStorage.setItem('tripPlan', JSON.stringify(tripPlan.value))
+  message.success(t('result.messages.budgetAmountUpdated'))
+}
+
+const deleteBudgetItem = (item: BudgetDetailItem) => {
+  if (!tripPlan.value || item.dayIndex === null) return
+
+  const day = tripPlan.value.days[item.dayIndex]
+  if (!day) return
+
+  let changed = false
+  let restorePayload: BudgetRestorePayload | null = null
+
+  if (item.type === 'attraction' && typeof item.sourceIndex === 'number') {
+    const attraction = day.attractions[item.sourceIndex]
+    if (attraction) {
+      restorePayload = {
+        type: 'attraction',
+        attraction: cloneData(attraction),
+        insertIndex: item.sourceIndex,
+      }
+      day.attractions.splice(item.sourceIndex, 1)
+      changed = true
+    }
+  }
+
+  if (item.type === 'meal' && typeof item.sourceIndex === 'number') {
+    const meal = day.meals[item.sourceIndex]
+    if (meal) {
+      restorePayload = {
+        type: 'meal',
+        meal: cloneData(meal),
+        insertIndex: item.sourceIndex,
+      }
+      day.meals.splice(item.sourceIndex, 1)
+      changed = true
+    }
+  }
+
+  if (item.type === 'hotel') {
+    if (day.hotel) {
+      restorePayload = {
+        type: 'hotel',
+        hotel: cloneData(day.hotel),
+        accommodation: day.accommodation || '',
+      }
+      day.hotel = undefined
+      day.accommodation = ''
+      changed = true
+    }
+  }
+
+  if (item.type === 'transport') {
+    if (day.transportation && day.transportation.trim()) {
+      restorePayload = {
+        type: 'transport',
+        transportation: day.transportation,
+      }
+      day.transportation = ''
+      changed = true
+    }
+  }
+
+  if (!changed || !restorePayload) return
+
+  pendingBudgetItems.value.unshift({
+    uid: `${item.id}-${Date.now()}`,
+    base: cloneData(item),
+    payload: restorePayload,
+  })
+
+  const transportationTotal =
+    item.type === 'transport'
+      ? Math.max(
+          0,
+          roundBudgetAmount(
+            toBudgetNumber(tripPlan.value.budget?.total_transportation) - roundBudgetAmount(item.amount)
+          )
+        )
+      : undefined
+
+  recalculateBudgetTotals(transportationTotal)
+  sessionStorage.setItem('tripPlan', JSON.stringify(tripPlan.value))
+
+  if (map) {
+    map.destroy()
+    map = null
+  }
+
+  message.success(t('result.messages.budgetItemDeleted'))
+}
+
+const restoreBudgetItem = (pendingItem: BudgetRestoreItem) => {
+  if (!tripPlan.value || pendingItem.base.dayIndex === null) return
+
+  const day = tripPlan.value.days[pendingItem.base.dayIndex]
+  if (!day) return
+
+  let changed = false
+
+  if (pendingItem.payload.type === 'attraction') {
+    const insertAt = Math.max(0, Math.min(pendingItem.payload.insertIndex, day.attractions.length))
+    day.attractions.splice(insertAt, 0, cloneData(pendingItem.payload.attraction))
+    changed = true
+  }
+
+  if (pendingItem.payload.type === 'meal') {
+    const insertAt = Math.max(0, Math.min(pendingItem.payload.insertIndex, day.meals.length))
+    day.meals.splice(insertAt, 0, cloneData(pendingItem.payload.meal))
+    changed = true
+  }
+
+  if (pendingItem.payload.type === 'hotel') {
+    day.hotel = cloneData(pendingItem.payload.hotel)
+    day.accommodation = pendingItem.payload.accommodation
+    changed = true
+  }
+
+  if (pendingItem.payload.type === 'transport') {
+    day.transportation = pendingItem.payload.transportation
+    changed = true
+  }
+
+  if (!changed) return
+
+  const transportationTotal =
+    pendingItem.base.type === 'transport'
+      ? roundBudgetAmount(toBudgetNumber(tripPlan.value.budget?.total_transportation) + pendingItem.base.amount)
+      : undefined
+
+  recalculateBudgetTotals(transportationTotal)
+  pendingBudgetItems.value = pendingBudgetItems.value.filter((item) => item.uid !== pendingItem.uid)
+  sessionStorage.setItem('tripPlan', JSON.stringify(tripPlan.value))
+
+  if (map) {
+    map.destroy()
+    map = null
+  }
+
+  message.success(t('result.messages.budgetItemRestored'))
 }
 
 // 加载所有景点图片
@@ -859,33 +1697,19 @@ const loadAttractionPhotos = async () => {
 }
 
 // 获取景点图片
-const getAttractionImage = (name: string, index: number): string => {
+const getAttractionImage = (name: string, _index: number): string => {
   // 如果已加载真实图片,返回真实图片
   if (attractionPhotos.value[name]) {
     return attractionPhotos.value[name]
   }
 
-  // 返回一个纯色占位图(避免跨域问题)
-  const colors = [
-    { start: '#667eea', end: '#764ba2' },
-    { start: '#f093fb', end: '#f5576c' },
-    { start: '#4facfe', end: '#00f2fe' },
-    { start: '#43e97b', end: '#38f9d7' },
-    { start: '#fa709a', end: '#fee140' }
-  ]
-  const colorIndex = index % colors.length
-  const { start, end } = colors[colorIndex]
+  // 返回一个统一的深色占位图
+  const bg = '#1a262f'
+  const textColor = 'rgba(255,255,255,0.4)'
 
-  // 使用base64编码避免中文问题
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">
-    <defs>
-      <linearGradient id="grad${index}" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style="stop-color:${start};stop-opacity:1" />
-        <stop offset="100%" style="stop-color:${end};stop-opacity:1" />
-      </linearGradient>
-    </defs>
-    <rect width="400" height="300" fill="url(#grad${index})"/>
-    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="white">${name}</text>
+    <rect width="400" height="300" fill="${bg}"/>
+    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="${textColor}">${name}</text>
   </svg>`
 
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
@@ -894,9 +1718,9 @@ const getAttractionImage = (name: string, index: number): string => {
 // 图片加载失败时的处理
 const handleImageError = (event: Event) => {
   const img = event.target as HTMLImageElement
-  // 使用灰色占位图
+  // 使用深色占位图
   const label = encodeURIComponent(t('result.imageLoadFailed'))
-  img.src = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%23f0f0f0"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="18" fill="%23999"%3E${label}%3C/text%3E%3C/svg%3E`
+  img.src = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%231a262f"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="18" fill="rgba(255,255,255,0.4)"%3E${label}%3C/text%3E%3C/svg%3E`
 }
 
 
@@ -1163,7 +1987,28 @@ const initKnowledgeGraph = () => {
     kgChart.dispose()
   }
 
-  kgChart = echarts.init(container, 'dark')
+  kgChart = echarts.init(container, 'grey')
+  const containerWidth = Math.max(container.clientWidth, 320)
+  const containerHeight = Math.max(container.clientHeight, 320)
+  const nodesWithVisual = graphData.value.nodes.map((node) => {
+    const rawSize = Number(node.symbolSize) || 40
+    const categoryName = graphData.value?.categories?.[Number(node.category)]?.name || ''
+    const visual = getKgNodeVisualPreset(rawSize, categoryName)
+    return {
+      ...node,
+      __visual: visual,
+    }
+  })
+  const boundaryPositionMap = buildKgBoundaryPositionMap(
+    nodesWithVisual,
+    graphData.value.edges,
+    graphData.value.categories,
+    containerWidth,
+    containerHeight
+  )
+  const kgForceGravity = containerWidth < 500 ? 0.2 : 0.06
+  const kgForceRepulsion = containerWidth < 500 ? 360 : 520
+  const kgForceEdgeLength: [number, number] = containerWidth < 500 ? [60, 140] : [95, 220]
 
   const option: echarts.EChartsOption = {
     backgroundColor: 'transparent',
@@ -1200,20 +2045,48 @@ const initKnowledgeGraph = () => {
       {
         type: 'graph',
         layout: 'force',
-        data: graphData.value.nodes.map(node => ({
-          ...node,
-          label: {
-            show: node.symbolSize >= 35,
-            position: 'inside' as const,
-            fontSize: node.symbolSize >= 70 ? 14 : node.symbolSize >= 45 ? 12 : 10,
-            color: '#fff',
-            fontWeight: 'bold' as const,
-            formatter: (params: any) => {
-              const name = params.data.name as string
-              return name.length > 6 ? name.slice(0, 6) + '…' : name
+        data: nodesWithVisual.map(node => {
+          const visual = node.__visual as KgNodeVisualPreset
+          const nodeSymbol = getKgNodeSymbol(visual)
+          const point = boundaryPositionMap.get(String(node.id))
+          const labelFontSize = visual.size >= 140 ? 10 : visual.size >= 110 ? 9 : 8
+          const labelMaxChars = visual.size >= 140 ? 7 : visual.size >= 110 ? 6 : 5
+          const labelWidth = Math.round(visual.size * 0.52)
+
+          return {
+            ...node,
+            x: point?.x ?? containerWidth / 2,
+            y: point?.y ?? containerHeight / 2,
+            fixed: Boolean(point && point.x === containerWidth / 2 && point.y === containerHeight / 2),
+            symbol: nodeSymbol,
+            symbolSize: visual.size,
+            itemStyle: {
+              ...(node.itemStyle || {}),
+              borderColor: 'rgba(0, 0, 0, 0)',
+              borderWidth: 0,
+              shadowBlur: 0,
+              shadowColor: 'rgba(0, 0, 0, 0)',
             },
-          },
-        })),
+            label: {
+              show: visual.size >= 60,
+              position: 'inside' as const,
+              distance: 0,
+              fontSize: labelFontSize,
+              width: labelWidth,
+              overflow: 'truncate',
+              ellipsis: '…',
+              align: 'center' as const,
+              verticalAlign: 'middle' as const,
+              lineHeight: labelFontSize + 2,
+              color: '#fff',
+              fontWeight: 'bold' as const,
+              formatter: (params: any) => {
+                const name = String(params.data.name || '')
+                return name.length > labelMaxChars ? name.slice(0, labelMaxChars) + '…' : name
+              },
+            },
+          }
+        }),
         links: graphData.value.edges.map(edge => ({
           ...edge,
           lineStyle: {
@@ -1232,10 +2105,12 @@ const initKnowledgeGraph = () => {
         roam: true,
         draggable: true,
         force: {
-          repulsion: 350,
-          gravity: 0.08,
-          edgeLength: [80, 200],
-          friction: 0.6,
+          initLayout: 'none',
+          repulsion: kgForceRepulsion,
+          gravity: kgForceGravity,
+          edgeLength: kgForceEdgeLength,
+          friction: 0.2,
+          layoutAnimation: true,
         },
         emphasis: {
           focus: 'adjacency',
@@ -1250,9 +2125,233 @@ const initKnowledgeGraph = () => {
 
   kgChart.setOption(option)
 
-  // 响应窗口变化
-  window.addEventListener('resize', () => {
-    kgChart?.resize()
+  // 响应窗口变化：重算边界偏置坐标，防止节点越界
+  if (kgResizeHandler) {
+    window.removeEventListener('resize', kgResizeHandler)
+  }
+  kgResizeHandler = () => {
+    if (!graphData.value) return
+    initKnowledgeGraph()
+  }
+  window.addEventListener('resize', kgResizeHandler)
+}
+
+const escapeHtml = (value: unknown): string => {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+const buildMarkerContent = (dayNo: number, stopNo: number): string => {
+  return `
+    <div class="tripstar-map-marker">
+      <span class="tripstar-map-marker__core" aria-hidden="true">
+        <svg fill="#ffffff" width="30px" height="30px" viewBox="0 0 256 256" id="Flat" xmlns="http://www.w3.org/2000/svg">
+          <path d="M231.4248,109.2041,169.36426,86.63574,146.7959,24.57422a19.99984,19.99984,0,0,0-37.5918.001L86.63574,86.63574,24.57422,109.2041a19.99984,19.99984,0,0,0,.001,37.5918l62.06054,22.56836,22.56836,62.06152a19.99984,19.99984,0,0,0,37.5918-.001l22.56836-62.06054,62.06152-22.56836a19.99984,19.99984,0,0,0-.001-37.5918Zm-72.01562,38.24219a19.95591,19.95591,0,0,0-11.96289,11.96289l.001-.001L128,212.88672l-19.44629-53.47754A19.95279,19.95279,0,0,0,96.5918,147.44727L43.11328,128l53.47754-19.44629A19.95279,19.95279,0,0,0,108.55273,96.5918L128,43.11328l19.44629,53.47754a19.95279,19.95279,0,0,0,11.96191,11.96191L212.88672,128Z"/>
+        </svg>
+      </span>
+      <span class="tripstar-map-marker__index" aria-hidden="true">${dayNo}-${stopNo}</span>
+    </div>
+  `
+}
+
+const buildInfoWindowContent = (attraction: any): string => {
+  const name = escapeHtml(attraction.name || t('common.noData'))
+  const address = escapeHtml(attraction.address || t('common.noData'))
+  const visitDuration = Number.isFinite(attraction.visit_duration) ? attraction.visit_duration : '—'
+  const dayAttractionText = escapeHtml(
+    t('result.mapInfo.dayAttraction', { day: attraction.dayIndex + 1, index: attraction.attrIndex + 1 })
+  )
+  const minuteUnit = escapeHtml(t('result.minuteUnit'))
+
+  return `
+    <div class="tripstar-map-tooltip tripstar-map-tooltip--plain">
+      <p class="tripstar-map-tooltip__line tripstar-map-tooltip__line--title">${name}</p>
+      <p class="tripstar-map-tooltip__line">${dayAttractionText}</p>
+      <p class="tripstar-map-tooltip__line">${address}</p>
+      <p class="tripstar-map-tooltip__line">${visitDuration}${minuteUnit}</p>
+    </div>
+  `
+}
+
+type RouteMode = 'driving' | 'walking' | 'straight'
+type RoutePoint = [number, number]
+
+const ROUTE_STYLE_PRESETS: Record<
+  RouteMode,
+  {
+    strokeColor: string
+    strokeWeight: number
+    strokeOpacity: number
+    strokeStyle: 'solid' | 'dashed'
+    strokeDasharray?: number[]
+    lineJoin?: 'round' | 'miter' | 'bevel'
+    lineCap?: 'butt' | 'round' | 'square'
+    outlineColor?: string
+    borderWeight?: number
+  }
+> = {
+  driving: {
+    strokeColor: '#37b4ff',
+    strokeWeight: 3.5,
+    strokeOpacity: 0.92,
+    strokeStyle: 'solid',
+    lineJoin: 'round',
+    lineCap: 'round',
+    outlineColor: 'rgba(4, 19, 32, 0.7)',
+    borderWeight: 1,
+  },
+  walking: {
+    strokeColor: '#6ad38f',
+    strokeWeight: 3,
+    strokeOpacity: 0.9,
+    strokeStyle: 'dashed',
+    strokeDasharray: [12, 8],
+    lineJoin: 'round',
+    lineCap: 'round',
+    outlineColor: 'rgba(8, 32, 20, 0.5)',
+    borderWeight: 0.8,
+  },
+  straight: {
+    strokeColor: '#ffffff',
+    strokeWeight: 1.5,
+    strokeOpacity: 0.62,
+    strokeStyle: 'solid',
+    strokeDasharray: [10, 10],
+    lineJoin: 'round',
+    lineCap: 'round',
+    outlineColor: 'rgba(33, 17, 8, 0.45)',
+    borderWeight: 0.8,
+  },
+}
+
+const detectRouteMode = (transportation: string): RouteMode => {
+  const normalized = (transportation || '').toLowerCase()
+  if (/(步行|徒步|散步|walk|walking)/i.test(normalized)) return 'walking'
+  if (/(驾车|开车|自驾|打车|出租车|car|drive|driving|taxi)/i.test(normalized)) return 'driving'
+  return 'driving'
+}
+
+const toRoutePoint = (raw: any): RoutePoint | null => {
+  if (!raw) return null
+
+  if (Array.isArray(raw) && raw.length >= 2) {
+    const lng = Number(raw[0])
+    const lat = Number(raw[1])
+    return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null
+  }
+
+  if (typeof raw.getLng === 'function' && typeof raw.getLat === 'function') {
+    const lng = Number(raw.getLng())
+    const lat = Number(raw.getLat())
+    return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null
+  }
+
+  if ('lng' in raw && 'lat' in raw) {
+    const lng = Number(raw.lng)
+    const lat = Number(raw.lat)
+    return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null
+  }
+
+  if ('longitude' in raw && 'latitude' in raw) {
+    const lng = Number(raw.longitude)
+    const lat = Number(raw.latitude)
+    return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null
+  }
+
+  return null
+}
+
+const parsePolylineString = (polyline: string): RoutePoint[] => {
+  if (!polyline) return []
+
+  return polyline
+    .split(';')
+    .map((pair) => pair.split(','))
+    .map((parts) => {
+      const lng = Number(parts[0])
+      const lat = Number(parts[1])
+      return Number.isFinite(lng) && Number.isFinite(lat) ? ([lng, lat] as RoutePoint) : null
+    })
+    .filter((point): point is RoutePoint => Boolean(point))
+}
+
+const dedupeRoutePath = (points: RoutePoint[]): RoutePoint[] => {
+  if (points.length <= 1) return points
+  return points.filter((point, index, array) => {
+    if (index === 0) return true
+    const prev = array[index - 1]
+    return point[0] !== prev[0] || point[1] !== prev[1]
+  })
+}
+
+const extractRoutePath = (result: any): RoutePoint[] => {
+  const route =
+    result?.routes?.[0] ||
+    result?.route?.paths?.[0] ||
+    result?.route?.routes?.[0] ||
+    null
+
+  if (!route) return []
+
+  const steps = route.steps || []
+  const points: RoutePoint[] = []
+
+  steps.forEach((step: any) => {
+    if (Array.isArray(step?.path)) {
+      step.path.forEach((node: any) => {
+        const point = toRoutePoint(node)
+        if (point) points.push(point)
+      })
+      return
+    }
+
+    if (typeof step?.polyline === 'string') {
+      points.push(...parsePolylineString(step.polyline))
+    }
+  })
+
+  if (points.length > 1) return dedupeRoutePath(points)
+
+  if (typeof route?.polyline === 'string') {
+    const fromRoute = dedupeRoutePath(parsePolylineString(route.polyline))
+    if (fromRoute.length > 1) return fromRoute
+  }
+
+  return []
+}
+
+const searchRoutePath = (
+  AMap: any,
+  mode: Exclude<RouteMode, 'straight'>,
+  start: RoutePoint,
+  end: RoutePoint
+): Promise<RoutePoint[] | null> => {
+  return new Promise((resolve) => {
+    const ServiceCtor = mode === 'walking' ? AMap.Walking : AMap.Driving
+    if (!ServiceCtor) {
+      resolve(null)
+      return
+    }
+
+    const service =
+      mode === 'driving'
+        ? new ServiceCtor({
+            policy: AMap.DrivingPolicy?.LEAST_TIME ?? 0,
+          })
+        : new ServiceCtor({})
+
+    service.search(start, end, (status: string, result: any) => {
+      if (status !== 'complete') {
+        resolve(null)
+        return
+      }
+      const path = extractRoutePath(result)
+      resolve(path.length > 1 ? path : null)
+    })
   })
 }
 
@@ -1262,18 +2361,19 @@ const initMap = async () => {
     const AMap = await AMapLoader.load({
       key: import.meta.env.VITE_AMAP_WEB_JS_KEY,  // 高德地图Web端(JS API) Key
       version: '2.0',
-      plugins: ['AMap.Marker', 'AMap.Polyline', 'AMap.InfoWindow']
+      plugins: ['AMap.Marker', 'AMap.Polyline', 'AMap.InfoWindow', 'AMap.Driving', 'AMap.Walking']
     })
 
     // 创建地图实例
     map = new AMap.Map('amap-container', {
       zoom: 12,
       center: [116.397128, 39.916527], // 默认中心点(北京)
-      viewMode: '3D'
+      viewMode: '3D',
+      mapStyle: 'amap://styles/grey'
     })
 
     // 添加景点标记
-    addAttractionMarkers(AMap)
+    await addAttractionMarkers(AMap)
 
     message.success(t('result.messages.mapLoaded'))
   } catch (error) {
@@ -1283,7 +2383,7 @@ const initMap = async () => {
 }
 
 // 添加景点标记
-const addAttractionMarkers = (AMap: any) => {
+const addAttractionMarkers = async (AMap: any) => {
   if (!tripPlan.value) return
 
   const markers: any[] = []
@@ -1309,28 +2409,28 @@ const addAttractionMarkers = (AMap: any) => {
   allAttractions.forEach((attraction, index) => {
     const marker = new AMap.Marker({
       position: [attraction.location.longitude, attraction.location.latitude],
-      title: attraction.name,
-      label: {
-        content: `<div style="background: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${index + 1}</div>`,
-        offset: new AMap.Pixel(0, -30)
-      }
+      content: buildMarkerContent(attraction.dayIndex + 1, attraction.attrIndex + 1),
+      anchor: 'center',
+      offset: new AMap.Pixel(0, 0),
+      zIndex: 120 + index,
     })
 
     // 创建信息窗口
     const infoWindow = new AMap.InfoWindow({
-      content: `
-        <div style="padding: 10px; color: #333;">
-          <h4 style="margin: 0 0 8px 0; color: #1a1a1a;">${attraction.name}</h4>
-          <p style="margin: 4px 0;"><strong>${t('result.fieldAddress')}:</strong> ${attraction.address}</p>
-          <p style="margin: 4px 0;"><strong>${t('result.fieldVisitDuration')}:</strong> ${attraction.visit_duration}${t('result.minuteUnit')}</p>
-          <p style="margin: 4px 0;"><strong>${t('result.fieldDescription')}:</strong> ${attraction.description}</p>
-          <p style="margin: 4px 0; color: #1890ff;"><strong>${t('result.mapInfo.dayAttraction', { day: attraction.dayIndex + 1, index: attraction.attrIndex + 1 })}</strong></p>
-        </div>
-      `,
-      offset: new AMap.Pixel(0, -30)
+      isCustom: true,
+      content: buildInfoWindowContent(attraction),
+      offset: new AMap.Pixel(0, -18),
+      closeWhenClickMap: true,
     })
 
-    // 点击标记显示信息窗口
+    // 悬停显示纯文本tooltip，移出关闭
+    marker.on('mouseover', () => {
+      infoWindow.open(map, marker.getPosition())
+    })
+    marker.on('mouseout', () => {
+      infoWindow.close()
+    })
+    // 点击也显示，兼容触屏设备
     marker.on('click', () => {
       infoWindow.open(map, marker.getPosition())
     })
@@ -1341,21 +2441,22 @@ const addAttractionMarkers = (AMap: any) => {
   // 添加标记到地图
   map.add(markers)
 
+  // 绘制路线（优先真实道路路线，失败时回退直线）
+  const routePolylines = await drawRoutes(AMap, allAttractions)
+
   // 自动调整视野以包含所有标记
   if (allAttractions.length > 0) {
-    map.setFitView(markers)
+    const overlaysForFit = routePolylines.length > 0 ? [...markers, ...routePolylines] : markers
+    map.setFitView(overlaysForFit)
   }
-
-  // 绘制路线
-  drawRoutes(AMap, allAttractions)
 }
 
-// 绘制路线
-const drawRoutes = (AMap: any, attractions: any[]) => {
-  if (attractions.length < 2) return
+// 绘制路线：根据交通方式选择 driving / walking；失败时降级为直线
+const drawRoutes = async (AMap: any, attractions: any[]): Promise<any[]> => {
+  if (attractions.length < 2 || !tripPlan.value) return []
 
   // 按天分组绘制路线
-  const dayGroups: any = {}
+  const dayGroups: Record<number, any[]> = {}
   attractions.forEach(attr => {
     if (!dayGroups[attr.dayIndex]) {
       dayGroups[attr.dayIndex] = []
@@ -1363,26 +2464,49 @@ const drawRoutes = (AMap: any, attractions: any[]) => {
     dayGroups[attr.dayIndex].push(attr)
   })
 
-  // 为每天的景点绘制路线
-  Object.values(dayGroups).forEach((dayAttractions: any) => {
-    if (dayAttractions.length < 2) return
+  const polylines: any[] = []
 
-    const path = dayAttractions.map((attr: any) => [
-      attr.location.longitude,
-      attr.location.latitude
-    ])
+  // 为每天的景点逐段绘制路线
+  for (const dayAttractions of Object.values(dayGroups)) {
+    if (dayAttractions.length < 2) continue
 
-    const polyline = new AMap.Polyline({
-      path: path,
-      strokeColor: '#1890ff',
-      strokeWeight: 4,
-      strokeOpacity: 0.8,
-      strokeStyle: 'solid',
-      showDir: true // 显示方向箭头
-    })
+    dayAttractions.sort((a: any, b: any) => a.attrIndex - b.attrIndex)
+    const dayIndex = dayAttractions[0].dayIndex
+    const transportation = tripPlan.value.days?.[dayIndex]?.transportation || ''
+    const preferredMode = detectRouteMode(transportation)
 
-    map.add(polyline)
-  })
+    for (let i = 0; i < dayAttractions.length - 1; i++) {
+      const start = dayAttractions[i]
+      const end = dayAttractions[i + 1]
+      const startPoint: RoutePoint = [start.location.longitude, start.location.latitude]
+      const endPoint: RoutePoint = [end.location.longitude, end.location.latitude]
+
+      const plannedPath =
+        preferredMode === 'straight'
+          ? null
+          : await searchRoutePath(AMap, preferredMode as Exclude<RouteMode, 'straight'>, startPoint, endPoint)
+
+      const usePlannedRoute = Array.isArray(plannedPath) && plannedPath.length > 1
+      const routeModeForStyle: RouteMode = usePlannedRoute ? preferredMode : 'straight'
+      const path = usePlannedRoute ? plannedPath : [startPoint, endPoint]
+      const style = ROUTE_STYLE_PRESETS[routeModeForStyle]
+
+      const polyline = new AMap.Polyline({
+        path,
+        ...style,
+        showDir: true,
+        zIndex: 90,
+      })
+
+      polylines.push(polyline)
+    }
+  }
+
+  if (polylines.length > 0) {
+    map.add(polylines)
+  }
+
+  return polylines
 }
 </script>
 
@@ -1543,10 +2667,6 @@ const drawRoutes = (AMap: any, attractions: any[]) => {
   box-shadow: none !important;
 }
 
-.main-content {
-  width: 100%;
-}
-
 /* 景点图片样式 */
 .attraction-image-wrapper {
   position: relative;
@@ -1600,52 +2720,548 @@ const drawRoutes = (AMap: any, attractions: any[]) => {
   backdrop-filter: blur(10px);
 }
 
-/* 天气卡片样式 */
-.weather-card {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  backdrop-filter: blur(16px);
-  transition: all 0.3s ease;
+/* 天气看板样式 */
+.weather-section-card {
+  /* margin-top: 14px; */
+  overflow: hidden;
 }
 
-.weather-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(215, 110, 66, 0.32) !important;
-  box-shadow: 0 8px 24px rgba(215, 110, 66, 0.22);
+.weather-dashboard {
+  display: flex;
+  height: 350px;
+  /* border-radius: 24px; */
+  overflow: hidden;
+  /* border: 1px solid rgba(255, 255, 255, 0.14); */
+  background: none;
 }
 
-.weather-date {
+.weather-side {
+  position: relative;
+  flex: 0 0 300px;
+  /* min-height: 360px; */
+  /* border-radius: 26px; */
+  overflow: hidden;
+  box-shadow: 0 0 20px -8px rgba(0, 0, 0, 0.36);
+  transition: transform 300ms ease;
+  transform: translateZ(0) scale(1.02) perspective(1200px);
+}
+
+.weather-side:hover {
+  transform: scale(1.06) perspective(1400px) rotateY(6deg);
+}
+
+.weather-gradient {
+  position: absolute;
+  inset: 0;
+  background-image: url("https://images.unsplash.com/photo-1559963110-71b394e7494d?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=675&q=80");
+  /* background-image: var(--weather-gradient, linear-gradient(140deg, #72edf2 0%, #5151e5 100%)); */
+  opacity: 0.84;
+}
+
+.date-container {
+  position: absolute;
+  top: 38px;
+  left: 38px;
+  right: 28px;
+  z-index: 2;
+}
+
+.date-dayname {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.12;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.date-day {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: rgba(240, 247, 255, 0.84);
+}
+
+.location {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
   font-size: 16px;
   font-weight: bold;
-  color: #95c7f5;
-  margin-bottom: 12px;
-  text-align: center;
+  color: rgba(242, 248, 255, 0.9);
 }
 
-.weather-info-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
+.location-icon {
+  margin-right: 6px;
 }
 
-.weather-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+.weather-container {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 28px;
+  z-index: 2;
 }
 
-.weather-value {
-  font-size: 16px;
+.weather-hero-icon {
+  display: inline-block;
+  color: #f7fbff;
+  font-size: 0.78em;
+  line-height: 1;
+  margin-bottom: -22px;
+  margin-left: -20px;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.18));
+}
+
+.weather-icon {
+  position: relative;
+  display: inline-block;
+  width: 12em;
+  height: 10em;
+  animation: weather-float 5.5s ease-in-out infinite;
+}
+
+.weather-icon .cloud {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  width: 3.6875em;
+  height: 3.6875em;
+  margin: -1.84375em;
+  background: currentColor;
+  border-radius: 50%;
+  box-shadow:
+    -2.1875em 0.6875em 0 -0.6875em,
+    2.0625em 0.9375em 0 -0.9375em,
+    0 0 0 0.375em #fff,
+    -2.1875em 0.6875em 0 -0.3125em #fff,
+    2.0625em 0.9375em 0 -0.5625em #fff;
+}
+
+.weather-icon .cloud:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -0.5em;
+  display: block;
+  width: 4.5625em;
+  height: 1em;
+  background: currentColor;
+  box-shadow: 0 0.4375em 0 -0.0625em #fff;
+}
+
+.weather-icon .cloud:nth-child(2) {
+  z-index: 0;
+  background: #fff;
+  box-shadow:
+    -2.1875em 0.6875em 0 -0.6875em #fff,
+    2.0625em 0.9375em 0 -0.9375em #fff,
+    0 0 0 0.375em #fff,
+    -2.1875em 0.6875em 0 -0.3125em #fff,
+    2.0625em 0.9375em 0 -0.5625em #fff;
+  opacity: 0.3;
+  transform: scale(0.5) translate(6em, -3em);
+  animation: weather-cloud 4s linear infinite;
+}
+
+.weather-icon .cloud:nth-child(2):after {
+  background: #fff;
+}
+
+.weather-icon .sun {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2.5em;
+  height: 2.5em;
+  margin: -1.25em;
+  background: currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0.375em #fff;
+  animation: weather-spin 12s infinite linear;
+}
+
+.weather-icon .rays {
+  position: absolute;
+  top: -2em;
+  left: 50%;
+  display: block;
+  width: 0.375em;
+  height: 1.125em;
+  margin-left: -0.1875em;
+  background: #fff;
+  border-radius: 0.25em;
+  box-shadow: 0 5.375em #fff;
+}
+
+.weather-icon .rays:before,
+.weather-icon .rays:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 0.375em;
+  height: 1.125em;
+  transform: rotate(60deg);
+  transform-origin: 50% 3.25em;
+  background: #fff;
+  border-radius: 0.25em;
+  box-shadow: 0 5.375em #fff;
+}
+
+.weather-icon .rays:before {
+  transform: rotate(120deg);
+}
+
+.weather-icon .cloud + .sun {
+  margin: -2em 1em;
+}
+
+.weather-icon .rain,
+.weather-icon .lightning,
+.weather-icon .snow {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  width: 3.75em;
+  height: 3.75em;
+  margin: 0.375em 0 0 -2em;
+  background: transparent;
+}
+
+.weather-icon .rain:after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  width: 1.125em;
+  height: 1.125em;
+  margin: -1em 0 0 -0.25em;
+  background: #0cf;
+  border-radius: 100% 0 60% 50% / 60% 0 100% 50%;
+  box-shadow:
+    0.625em 0.875em 0 -0.125em rgba(255, 255, 255, 0.2),
+    -0.875em 1.125em 0 -0.125em rgba(255, 255, 255, 0.2),
+    -1.375em -0.125em 0 rgba(255, 255, 255, 0.2);
+  transform: rotate(-28deg);
+  animation: weather-rain 3s linear infinite;
+}
+
+.weather-icon .bolt {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -0.25em 0 0 -0.125em;
+  color: #fff;
+  opacity: 0.3;
+  animation: weather-lightning 2s linear infinite;
+}
+
+.weather-icon .bolt:nth-child(2) {
+  width: 0.5em;
+  height: 0.25em;
+  margin: -1.75em 0 0 -1.875em;
+  transform: translate(2.5em, 2.25em);
+  opacity: 0.2;
+  animation: weather-lightning 1.5s linear infinite;
+}
+
+.weather-icon .bolt:before,
+.weather-icon .bolt:after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  margin: -1.625em 0 0 -1.0125em;
+  border-top: 1.25em solid transparent;
+  border-right: 0.75em solid;
+  border-bottom: 0.75em solid;
+  border-left: 0.5em solid transparent;
+  transform: skewX(-10deg);
+}
+
+.weather-icon .bolt:after {
+  margin: -0.25em 0 0 -0.25em;
+  border-top: 0.75em solid;
+  border-right: 0.5em solid transparent;
+  border-bottom: 1.25em solid transparent;
+  border-left: 0.75em solid;
+  transform: skewX(-10deg);
+}
+
+.weather-icon .bolt:nth-child(2):before {
+  margin: -0.75em 0 0 -0.5em;
+  border-top: 0.625em solid transparent;
+  border-right: 0.375em solid;
+  border-bottom: 0.375em solid;
+  border-left: 0.25em solid transparent;
+}
+
+.weather-icon .bolt:nth-child(2):after {
+  margin: -0.125em 0 0 -0.125em;
+  border-top: 0.375em solid;
+  border-right: 0.25em solid transparent;
+  border-bottom: 0.625em solid transparent;
+  border-left: 0.375em solid;
+}
+
+.weather-icon .flake:before,
+.weather-icon .flake:after {
+  content: '\2744';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -1.025em 0 0 -1.0125em;
+  color: #fff;
+  line-height: 1em;
+  opacity: 0.2;
+  animation: weather-spin 8s linear infinite reverse;
+}
+
+.weather-icon .flake:after {
+  margin: 0.125em 0 0 -1em;
+  font-size: 1.5em;
+  opacity: 0.4;
+  animation: weather-spin 14s linear infinite;
+}
+
+.weather-icon .flake:nth-child(2):before {
+  margin: -0.5em 0 0 0.25em;
+  font-size: 1.25em;
+  opacity: 0.2;
+  animation: weather-spin 10s linear infinite;
+}
+
+.weather-icon .flake:nth-child(2):after {
+  margin: 0.375em 0 0 0.125em;
+  font-size: 2em;
+  opacity: 0.4;
+  animation: weather-spin 16s linear infinite reverse;
+}
+
+.weather-temp {
+  margin: 8px 0 0;
+  font-size: 56px;
+  line-height: 0.95;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.weather-desc {
+  margin: 8px 0 0;
+  font-size: 20px;
+  color: rgba(245, 249, 255, 0.94);
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
 }
 
-.weather-wind {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+.weather-info-side {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.today-info-container {
+  /* border-radius: 14px; */
+  /* border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02); */
+}
+
+.today-info {
+  padding: 10px 12px;
+}
+
+.today-info-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.today-info-item + .today-info-item {
+  margin-top: 6px;
+  padding-top: 6px;
+  /* border-top: 1px solid rgba(255, 255, 255, 0.08); */
+}
+
+.today-info-item .wea-title {
+  color: rgba(235, 243, 252, 0.809);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 17px;
+  font-weight: 600;
+  padding: 3px 0;
+}
+
+.today-info-item .value {
+  color: rgba(255, 255, 255, 0.9);
+  text-align: right;
+  font-size: 16px;
+}
+
+.week-container {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.week-container--top {
+  margin-bottom: 2px;
+}
+
+.week-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.week-list > li {
+  width: 86px;
+  padding: 8px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(238, 245, 253, 0.78);
+}
+
+.week-list > li:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(5, 12, 20, 0.9);
+  box-shadow: 0 10px 28px rgba(9, 15, 22, 0.32);
+}
+
+.week-list > li.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(9, 14, 24, 0.92);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.week-list > li .day-icon {
+  display: block;
+  margin: 0 auto;
+}
+
+.week-list > li .day-icon.weather-icon--small {
+  width: 12em;
+  height: 10em;
+  font-size: 0.3em;
+  color: inherit;
+  animation-duration: 6.2s;
+}
+
+.week-list > li .day-name {
+  display: block;
+  margin-top: 6px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.week-list > li .day-temp {
+  display: block;
+  text-align: center;
+  margin-top: 3px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+@keyframes weather-spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes weather-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes weather-cloud {
+  0% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.5) translate(-200%, -3em);
+  }
+}
+
+@keyframes weather-rain {
+  0% {
+    background: #0cf;
+    box-shadow:
+      0.625em 0.875em 0 -0.125em rgba(255, 255, 255, 0.2),
+      -0.875em 1.125em 0 -0.125em rgba(255, 255, 255, 0.2),
+      -1.375em -0.125em 0 #0cf;
+  }
+
+  25% {
+    box-shadow:
+      0.625em 0.875em 0 -0.125em rgba(255, 255, 255, 0.2),
+      -0.875em 1.125em 0 -0.125em #0cf,
+      -1.375em -0.125em 0 rgba(255, 255, 255, 0.2);
+  }
+
+  50% {
+    background: rgba(255, 255, 255, 0.3);
+    box-shadow:
+      0.625em 0.875em 0 -0.125em #0cf,
+      -0.875em 1.125em 0 -0.125em rgba(255, 255, 255, 0.2),
+      -1.375em -0.125em 0 rgba(255, 255, 255, 0.2);
+  }
+
+  100% {
+    box-shadow:
+      0.625em 0.875em 0 -0.125em rgba(255, 255, 255, 0.2),
+      -0.875em 1.125em 0 -0.125em rgba(255, 255, 255, 0.2),
+      -1.375em -0.125em 0 #0cf;
+  }
+}
+
+@keyframes weather-lightning {
+  45% {
+    color: #fff;
+    background: #fff;
+    opacity: 0.2;
+  }
+
+  50% {
+    color: #0cf;
+    background: #0cf;
+    opacity: 1;
+  }
+
+  55% {
+    color: #fff;
+    background: #fff;
+    opacity: 0.2;
+  }
 }
 
 /* 回到顶部按钮 */
@@ -1717,6 +3333,27 @@ const drawRoutes = (AMap: any, attractions: any[]) => {
   margin-bottom: 20px;
 }
 
+.section-shellless {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.section-shellless:hover {
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
+:deep(.section-shellless > .ant-card-head) {
+  display: none !important;
+}
+
+:deep(.section-shellless > .ant-card-body) {
+  padding: 0 !important;
+  background: rgba(3, 8, 13, 0.726);
+  border-radius: 14px;
+}
+
 .overview-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1727,104 +3364,303 @@ const drawRoutes = (AMap: any, attractions: any[]) => {
 .overview-meta-item {
   display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
-  border-radius: 999px;
+  padding: 3px 12px;
+  /* border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.04); */
   color: rgba(236, 243, 250, 0.78);
   font-size: 12px;
   line-height: 1.5;
 }
 
 .overview-swiper {
-  width: 100%;
-  padding: 8px 2px 14px;
+  padding: 8px 2px 10px;
 }
 
 .overview-swiper .swiper {
-  width: 100%;
-  padding: 1.875rem 0;
-  overflow: visible;
+  padding: 0 0 0.6rem;
+  margin-top: -2rem;
+  margin-bottom: -2rem;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
 .overview-swiper .swiper-wrapper {
   align-items: flex-end;
+  min-height: 32rem;
 }
 
-.overview-swiper :deep(.swiper-slide) {
-  width: 18.75rem;
-}
 
 /* 预算卡片 */
 .budget-card {
   height: fit-content;
 }
 
-.budget-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.budget-item {
-  text-align: center;
-  padding: 16px 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all 0.3s ease;
-}
-
-.budget-item:hover {
-  border-color: rgba(215, 110, 66, 0.3);
-  background: rgba(215, 110, 66, 0.1);
-}
-
-.budget-label {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
-  margin-bottom: 8px;
-}
-
-.budget-value {
-  font-size: 22px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #d76e42, #a14625);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.budget-total {
+.budget-detail-panel {
+  min-height: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(3, 10, 15, 0.88);
+  padding: 18px;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.budget-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.budget-toolbar-item {
+  display: flex;
   align-items: center;
-  padding: 20px;
-  background: linear-gradient(135deg, #d76e42 0%, #ad522f 52%, #6f3c2a 100%);
+  gap: 8px;
+}
+
+.budget-toolbar-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.budget-select {
+  width: 180px;
+}
+
+.budget-select :deep(.ant-select-selector) {
+  border-radius: 10px !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
+.budget-select :deep(.ant-select-arrow) {
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.budget-detail-list {
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
-  color: white;
-  box-shadow: 0 8px 24px rgba(215, 110, 66, 0.32);
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.18);
 }
 
-.total-label {
-  font-size: 16px;
+.budget-detail-row {
+  display: grid;
+  grid-template-columns: 112px 96px minmax(0, 1fr) 120px 86px;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.budget-detail-row:last-child {
+  border-bottom: none;
+}
+
+.budget-detail-header {
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.64);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.budget-detail-type,
+.budget-detail-day,
+.budget-detail-name,
+.budget-detail-amount {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+}
+
+.budget-detail-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.budget-detail-amount {
   font-weight: 600;
+  color: #ffd5c6;
 }
 
-.total-value {
-  font-size: 30px;
-  font-weight: 800;
+.budget-action-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.budget-icon-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.budget-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.budget-edit-btn {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.budget-delete-btn {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.budget-edit-btn:hover,
+.budget-delete-btn:hover {
+  color: #fff;
+  transform: scale(1.1);
+  /* background: rgba(110, 247, 213, 0.16); */
+}
+
+.right-budget-summary {
+  flex: 0 0 360px;
+}
+
+.budget-summary-panel {
+  min-height: 100%;
+  border-radius: 14px;
+  border: 1.2px solid rgba(255, 255, 255, 0.14);
+  background: rgba(3, 10, 15, 0.88);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.budget-summary-title {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 34px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.budget-summary-total-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.budget-summary-currency {
+  font-size: 42px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.budget-summary-total-value {
+  font-size: 78px;
+  line-height: 0.88;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.96);
+  letter-spacing: 0.01em;
+}
+
+.budget-summary-sub-grid {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+
+.budget-summary-sub-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 8px;
+}
+
+.budget-summary-sub-value {
+  font-size: 32px;
+  line-height: 1;
+  color: #ffd4c3;
+}
+
+.budget-summary-sub-label {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.65);
+  text-transform: uppercase;
+}
+
+.budget-pending-wrap {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.budget-pending-title {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.budget-pending-empty {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 8px 0;
+}
+
+.budget-pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.budget-pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.budget-pending-name {
+  flex: 1;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.budget-restore-btn {
+  padding: 0 !important;
 }
 
 /* 地图卡片 */
 .map-card {
   height: 100%;
   min-height: 500px;
+  overflow: hidden;
 }
 
 .map-card :deep(.ant-card-body) {
-  height: calc(100% - 57px);
+  height: 100%;
   padding: 0;
 }
 
@@ -1842,8 +3678,10 @@ const drawRoutes = (AMap: any, attractions: any[]) => {
   flex-wrap: wrap;
   justify-content: center;
   gap: 16px;
-  padding: 12px 20px 0;
+  padding: 12px 20px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(6, 8, 14, 0.86);
+  border-radius: 0 0 16px 16px;
 }
 
 .kg-legend-item {
@@ -1855,10 +3693,13 @@ const drawRoutes = (AMap: any, attractions: any[]) => {
 }
 
 .kg-legend-dot {
-  width: 10px;
-  height: 10px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: inline-block;
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
 }
 
 /* 每日行程卡片 */
@@ -2123,6 +3964,63 @@ const drawRoutes = (AMap: any, attractions: any[]) => {
     flex: auto;
   }
 
+  .weather-dashboard {
+    flex-direction: column;
+    min-height: auto;
+    border-radius: 16px;
+  }
+
+  .weather-side {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 260px;
+    border-radius: 16px 16px 0 0;
+    transform: none !important;
+  }
+
+  .weather-info-side {
+    padding: 12px;
+  }
+
+  .weather-temp {
+    font-size: 46px;
+  }
+
+  .weather-desc {
+    font-size: 18px;
+  }
+
+  .week-list {
+    justify-content: space-between;
+  }
+
+  .week-list > li {
+    width: calc(33.333% - 7px);
+    min-width: 88px;
+    padding: 8px 6px;
+  }
+
+  .right-budget-summary {
+    flex: auto;
+    width: 100%;
+  }
+
+  .budget-summary-panel {
+    min-height: auto;
+  }
+
+  .budget-summary-title {
+    font-size: 30px;
+  }
+
+  .budget-summary-total-value {
+    font-size: 56px;
+  }
+
+  .budget-summary-sub-value {
+    font-size: 24px;
+  }
+
   .overview-meta {
     gap: 8px;
     margin-bottom: 14px;
@@ -2135,238 +4033,141 @@ const drawRoutes = (AMap: any, attractions: any[]) => {
 
   .overview-swiper .swiper-wrapper {
     gap: 1rem;
+    min-height: 27rem;
   }
 
-  .overview-swiper :deep(.swiper-slide) {
-    width: min(78vw, 18.75rem);
+  .overview-swiper .swiper {
+    padding: 2.4rem 0 0.6rem;
   }
+
+  .budget-toolbar {
+    gap: 8px;
+  }
+
+  .budget-detail-panel {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .budget-toolbar-item {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .budget-select {
+    width: 170px;
+  }
+
+  .budget-detail-list {
+    overflow-x: auto;
+  }
+
+  .budget-detail-row {
+    min-width: 620px;
+  }
+
 }
 
-/* ============ AI 聊天窗口 ============ */
-.chat-toggle-btn {
-  position: fixed;
-  bottom: 24px;
-  left: 24px;
-  padding: 10px 20px;
-  background: linear-gradient(135deg, #d76e42 0%, #a14625 100%);
-  color: #fff;
-  font-weight: 700;
-  font-size: 14px;
-  border-radius: 24px;
-  cursor: pointer;
-  z-index: 1000;
-  box-shadow: 0 4px 20px rgba(215, 110, 66, 0.35);
-  transition: all 0.3s ease;
-  user-select: none;
-}
-.chat-toggle-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 28px rgba(215, 110, 66, 0.46);
-}
-.chat-toggle-btn.active {
-  background: linear-gradient(135deg, #263847 0%, #1b2b37 100%);
-  color: #ffe3d6;
+</style>
+
+<style>
+:root {
+  --tripstar-map-accent: #d76e42;
+  --tripstar-map-accent-strong: #a14625;
+  --tripstar-map-surface: rgba(17, 29, 38, 0.96);
+  --tripstar-map-border: rgba(215, 110, 66, 0.35);
+  --tripstar-map-text-main: #f6fbff;
+  --tripstar-map-text-sub: rgba(240, 246, 252, 0.72);
 }
 
-/* 聊天面板 */
-.chat-panel {
-  position: fixed;
-  bottom: 76px;
-  left: 24px;
-  width: 380px;
-  height: 500px;
-  background: rgba(12, 23, 32, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(236, 243, 250, 0.15);
-  border-radius: 16px;
-  z-index: 999;
+.tripstar-map-marker {
+  position: relative;
+  width: 34px;
+  height: 34px;
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
-}
-
-/* 过渡动画 */
-.chat-slide-enter-active,
-.chat-slide-leave-active {
-  transition: all 0.35s cubic-bezier(.4,0,.2,1);
-}
-.chat-slide-enter-from,
-.chat-slide-leave-to {
-  opacity: 0;
-  transform: translateY(30px) scale(0.95);
-}
-
-.chat-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 14px 20px;
-  background: linear-gradient(135deg, rgba(215, 110, 66, 0.16) 0%, rgba(161, 70, 37, 0.1) 100%);
-  border-bottom: 1px solid rgba(215, 110, 66, 0.2);
-  font-weight: 600;
-  font-size: 15px;
-  color: #ffe3d6;
+  justify-content: center;
+  cursor: pointer;
 }
-.chat-close {
+
+.tripstar-map-marker__core {
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  /* border-radius: 50%; */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* background: rgba(0, 0, 0, 0.86);
+  border: 1.2px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45); */
+}
+
+.tripstar-map-marker__icon {
+  width: 12px;
+  height: 12px;
+  stroke: #ffffff;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.tripstar-map-marker__index {
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 15px;
+  font-weight: bold;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tripstar-map-tooltip {
+  max-width: min(320px, calc(100vw - 40px));
   background: transparent;
   border: none;
+  box-shadow: none;
   padding: 0;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255,255,255,0.4);
-  transition: color 0.2s;
-}
-.chat-close:hover {
-  color: #ffd6c6;
+  color: var(--tripstar-map-text-main);
+  pointer-events: none;
 }
 
-/* 消息区域 */
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.chat-messages::-webkit-scrollbar {
-  width: 4px;
-}
-.chat-messages::-webkit-scrollbar-thumb {
-  background: rgba(215, 110, 66, 0.26);
-  border-radius: 2px;
-}
-
-.chat-empty {
-  color: rgba(255,255,255,0.5);
-  font-size: 13px;
-  line-height: 1.8;
-  text-align: center;
-  margin-top: 40px;
-}
-
-.chat-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  margin-top: 12px;
-}
-.chat-suggestion {
-  padding: 5px 14px;
-  border-radius: 16px;
-  background: rgba(215, 110, 66, 0.14);
-  color: #ffd6c6;
+.tripstar-map-tooltip__line {
+  margin: 0;
   font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid rgba(215, 110, 66, 0.24);
-}
-.chat-suggestion:hover {
-  background: rgba(215, 110, 66, 0.24);
-  transform: translateY(-1px);
+  line-height: 1.45;
+  color: #ffd6c7 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  background-color: rgba(0, 0, 0, 0.05);
+  white-space: nowrap;
 }
 
-/* 气泡 */
-.chat-bubble {
-  max-width: 85%;
-  animation: bubbleIn 0.3s ease;
-}
-.chat-bubble.user {
-  align-self: flex-end;
-}
-.chat-bubble.assistant {
-  align-self: flex-start;
-}
-.bubble-content {
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 13px;
-  line-height: 1.7;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-.chat-bubble.user .bubble-content {
-  background: linear-gradient(135deg, #d76e42 0%, #a14625 100%);
-  color: #fff;
-  border-bottom-right-radius: 4px;
-}
-.chat-bubble.assistant .bubble-content {
-  background: rgba(255,255,255,0.07);
-  color: rgba(255,255,255,0.85);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-bottom-left-radius: 4px;
+.tripstar-map-tooltip__line + .tripstar-map-tooltip__line {
+  margin-top: 2px;
 }
 
-@keyframes bubbleIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* 打字动画 */
-.typing {
-  display: flex;
-  gap: 4px;
-  padding: 12px 18px !important;
-}
-.typing .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #d76e42;
-  animation: dotPulse 1.4s infinite ease-in-out both;
-}
-.typing .dot:nth-child(2) { animation-delay: 0.16s; }
-.typing .dot:nth-child(3) { animation-delay: 0.32s; }
-@keyframes dotPulse {
-  0%, 80%, 100% { transform: scale(0.4); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
-}
-
-/* 输入区 */
-.chat-input-area {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  background: rgba(0,0,0,0.2);
-}
-.chat-input {
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(215, 110, 66, 0.25);
-  background: rgba(255,255,255,0.05);
-  color: #fff;
-  font-size: 13px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.chat-input:focus {
-  border-color: #d76e42;
-}
-.chat-input::placeholder {
-  color: rgba(255,255,255,0.3);
-}
-.chat-send-btn {
-  padding: 8px 18px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(135deg, #d76e42 0%, #a14625 100%);
-  color: #fff;
+.tripstar-map-tooltip__line--title {
+  font-size: 15px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   font-weight: 700;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
+  color: #ffffff !important;
 }
-.chat-send-btn:hover:not(:disabled) {
-  box-shadow: 0 2px 12px rgba(215, 110, 66, 0.38);
+
+#amap-container .amap-info-content {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
-.chat-send-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+
+#amap-container .amap-info-sharp {
+  display: none !important;
 }
 </style>
 
